@@ -1,0 +1,16 @@
+[package]
+name    = "playground"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+leptos-arrow-grid        = { path = "../.." }
+leptos                   = { version = "0.8", features = ["csr"] }
+arrow-array              = "58"
+arrow-schema             = "58"
+console_error_panic_hook = "0.1"
+wasm-bindgen             = "=0.2.117"
