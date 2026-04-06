@@ -27,8 +27,8 @@ use crate::header::{HeaderCellData, HeaderRow};
 use crate::keyboard;
 use crate::selection::SelectionState;
 use crate::types::{
-    FilterKind, GridPage, MenuItem, SortDirection, SortState, DEFAULT_COL_WIDTH_PX,
-    ROW_NUM_WIDTH_PX, format_row_number,
+    DEFAULT_COL_WIDTH_PX, FilterKind, GridPage, MenuItem, ROW_NUM_WIDTH_PX, SortDirection,
+    SortState, format_row_number,
 };
 use crate::viewport::ViewportState;
 
@@ -172,7 +172,11 @@ pub fn DataGrid(
     });
 
     // ── Total width (for data rows) ─────────────────────────────
-    let gutter_w = if show_row_numbers { ROW_NUM_WIDTH_PX } else { 0.0 };
+    let gutter_w = if show_row_numbers {
+        ROW_NUM_WIDTH_PX
+    } else {
+        0.0
+    };
 
     let total_width = move || {
         let data_w = col_widths.with(super::column_state::ColumnWidths::total_width);

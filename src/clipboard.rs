@@ -12,7 +12,11 @@ use crate::types::GridPage;
 ///
 /// Reads directly from Arrow memory — no intermediate DOM access.
 /// Rows not in the current page are skipped (they aren't loaded).
-pub fn build_tsv<S: BuildHasher>(selected: &HashSet<u64, S>, schema: &SchemaRef, page: &Option<GridPage>) -> String {
+pub fn build_tsv<S: BuildHasher>(
+    selected: &HashSet<u64, S>,
+    schema: &SchemaRef,
+    page: &Option<GridPage>,
+) -> String {
     if selected.is_empty() {
         return String::new();
     }
@@ -78,9 +82,7 @@ pub fn copy_to_clipboard(text: &str, on_error: Option<leptos::prelude::Callback<
         let clipboard = window.navigator().clipboard();
         let promise = clipboard.write_text(&text);
         if let Err(err) = wasm_bindgen_futures::JsFuture::from(promise).await {
-            let msg = err
-                .as_string()
-                .unwrap_or_else(|| format!("{err:?}"));
+            let msg = err.as_string().unwrap_or_else(|| format!("{err:?}"));
             if let Some(cb) = on_error {
                 cb.run(msg);
             }

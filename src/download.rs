@@ -20,7 +20,11 @@ pub fn build_csv<S: BuildHasher>(
     let col_count = schema.fields().len();
 
     // Header row
-    let header: Vec<String> = schema.fields().iter().map(|f| csv_quote(f.name())).collect();
+    let header: Vec<String> = schema
+        .fields()
+        .iter()
+        .map(|f| csv_quote(f.name()))
+        .collect();
     let mut csv = header.join(",");
     csv.push('\n');
 
@@ -33,8 +37,11 @@ pub fn build_csv<S: BuildHasher>(
     let mut rows: Vec<u64> = if selected.is_empty() {
         (p.start..end).collect()
     } else {
-        let mut v: Vec<u64> =
-            selected.iter().copied().filter(|&r| r >= p.start && r < end).collect();
+        let mut v: Vec<u64> = selected
+            .iter()
+            .copied()
+            .filter(|&r| r >= p.start && r < end)
+            .collect();
         v.sort_unstable();
         v
     };
@@ -43,8 +50,9 @@ pub fn build_csv<S: BuildHasher>(
     for abs_row in rows {
         #[allow(clippy::cast_possible_truncation)]
         let local_idx = (abs_row - p.start) as usize;
-        let row: Vec<String> =
-            (0..col_count).map(|col| csv_quote(&render_cell(&p.batch, col, local_idx))).collect();
+        let row: Vec<String> = (0..col_count)
+            .map(|col| csv_quote(&render_cell(&p.batch, col, local_idx)))
+            .collect();
         csv.push_str(&row.join(","));
         csv.push('\n');
     }
@@ -82,7 +90,8 @@ pub fn download_csv_file(content: &str) {
     array.push(&wasm_bindgen::JsValue::from_str(content));
     let options = web_sys::BlobPropertyBag::new();
     options.set_type("text/csv;charset=utf-8;");
-    let Ok(blob) = web_sys::Blob::new_with_str_sequence_and_options(&array, &options) else {        return;
+    let Ok(blob) = web_sys::Blob::new_with_str_sequence_and_options(&array, &options) else {
+        return;
     };
 
     // Create object URL
@@ -151,7 +160,11 @@ mod tests {
             ],
         )
         .unwrap();
-        let page = GridPage { start: 0, row_count: 3, batch: Arc::new(batch) };
+        let page = GridPage {
+            start: 0,
+            row_count: 3,
+            batch: Arc::new(batch),
+        };
         (schema, page)
     }
 

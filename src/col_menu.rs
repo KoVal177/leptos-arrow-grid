@@ -2,12 +2,14 @@
 
 use leptos::prelude::*;
 
-use crate::types::{
-    FilterKind, FilterMode, MenuItem, SortDirection, SortState, build_filter,
-};
+use crate::types::{FilterKind, FilterMode, MenuItem, SortDirection, SortState, build_filter};
 
 /// Positioned column menu with sort, filter, and extra items.
-#[allow(unreachable_pub, clippy::too_many_lines, clippy::needless_pass_by_value)]
+#[allow(
+    unreachable_pub,
+    clippy::too_many_lines,
+    clippy::needless_pass_by_value
+)]
 #[component]
 pub fn ColMenu(
     /// Column index.

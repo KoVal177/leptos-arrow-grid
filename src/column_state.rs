@@ -48,41 +48,45 @@ impl ColumnWidths {
 mod tests {
     use super::*;
 
+    fn approx_eq(a: f64, b: f64) -> bool {
+        (a - b).abs() < f64::EPSILON
+    }
+
     #[test]
     fn new_widths() {
         let cw = ColumnWidths::new(3, 100.0);
         assert_eq!(cw.len(), 3);
         assert!(!cw.is_empty());
-        assert_eq!(cw.width(0), 100.0);
-        assert_eq!(cw.width(1), 100.0);
-        assert_eq!(cw.width(2), 100.0);
+        assert!(approx_eq(cw.width(0), 100.0));
+        assert!(approx_eq(cw.width(1), 100.0));
+        assert!(approx_eq(cw.width(2), 100.0));
     }
 
     #[test]
     fn set_width() {
         let mut cw = ColumnWidths::new(3, 100.0);
         cw.set_width(1, 200.0);
-        assert_eq!(cw.width(1), 200.0);
-        assert_eq!(cw.total_width(), 400.0);
+        assert!(approx_eq(cw.width(1), 200.0));
+        assert!(approx_eq(cw.total_width(), 400.0));
     }
 
     #[test]
     fn out_of_bounds_returns_default() {
         let cw = ColumnWidths::new(2, 80.0);
-        assert_eq!(cw.width(99), 80.0);
+        assert!(approx_eq(cw.width(99), 80.0));
     }
 
     #[test]
     fn set_width_out_of_bounds_is_noop() {
         let mut cw = ColumnWidths::new(2, 100.0);
         cw.set_width(99, 500.0);
-        assert_eq!(cw.total_width(), 200.0);
+        assert!(approx_eq(cw.total_width(), 200.0));
     }
 
     #[test]
     fn empty() {
         let cw = ColumnWidths::new(0, 100.0);
         assert!(cw.is_empty());
-        assert_eq!(cw.total_width(), 0.0);
+        assert!(approx_eq(cw.total_width(), 0.0));
     }
 }

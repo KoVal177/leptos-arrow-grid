@@ -5,7 +5,7 @@ use leptos::prelude::*;
 use crate::col_menu::ColMenu;
 use crate::column_state::ColumnWidths;
 use crate::types::{
-    FilterKind, MenuItem, SortDirection, SortState, cycle_sort, MIN_COL_WIDTH_PX, ROW_NUM_WIDTH_PX,
+    FilterKind, MIN_COL_WIDTH_PX, MenuItem, ROW_NUM_WIDTH_PX, SortDirection, SortState, cycle_sort,
 };
 
 /// Data for a single header cell (schema-derived, no sort state).
@@ -42,7 +42,11 @@ pub fn HeaderRow(
 ) -> impl IntoView {
     let open_menu: RwSignal<Option<(usize, f64, f64)>> = RwSignal::new(None);
 
-    let gutter_w = if show_row_numbers { ROW_NUM_WIDTH_PX } else { 0.0 };
+    let gutter_w = if show_row_numbers {
+        ROW_NUM_WIDTH_PX
+    } else {
+        0.0
+    };
     let total_width = move || {
         let data_w = col_widths.with(super::column_state::ColumnWidths::total_width);
         gutter_w + data_w

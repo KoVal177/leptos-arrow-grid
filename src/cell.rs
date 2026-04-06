@@ -62,7 +62,7 @@ fn arrow_value_to_string(array: &dyn Array, row: usize) -> String {
         DataType::Utf8View => match array.as_any().downcast_ref::<StringViewArray>() {
             Some(arr) => arr.value(row).to_owned(),
             None => fmt_via_array_formatter(array, row),
-        }
+        },
         // All other types: use Arrow's built-in display formatting.
         _ => fmt_via_array_formatter(array, row),
     }
@@ -167,8 +167,7 @@ mod tests {
         use arrow_array::Date32Array;
         let schema = Arc::new(Schema::new(vec![Field::new("d", DataType::Date32, false)]));
         let dates = Date32Array::from(vec![18628]); // 2021-01-01
-        let batch =
-            RecordBatch::try_new(schema, vec![Arc::new(dates)]).expect("test batch");
+        let batch = RecordBatch::try_new(schema, vec![Arc::new(dates)]).expect("test batch");
         let val = render_cell(&batch, 0, 0);
         assert!(!val.is_empty());
         assert_ne!(val, "?");

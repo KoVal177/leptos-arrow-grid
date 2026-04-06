@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  CARGO_TERM_COLOR: always
+  # Fail the build if there are any compiler or clippy warnings
+  RUSTFLAGS: "-D warnings"
+
+jobs:
+  lint-and-test:
+    name: Lint and Native Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust (1.94.0)
+        uses: dtolnay/rust-toolchain@1.94.0
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Check formatting
+        run: cargo fmt --all --check
+
+      - name: Clippy (Lints)
+        run: cargo clippy --all-targets --all-features
+
+      - name: Run Tests
+        # Executes all #[test] blocks in the codebase
+        run: cargo test --workspace --all-features
+
+  wasm-check:
+    name: WASM Compilation Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust (1.94.0) with WASM target
+        uses: dtolnay/rust-toolchain@1.94.0
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Cache dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Check Library (WASM)
+        run: cargo check --target wasm32-unknown-unknown
+
+      - name: Check Playground Example (WASM)
+        # Ensures the playground isn't broken by library changes
+        run: |
+          cd examples/playground
+          cargo check --target wasm32-unknown-unknown

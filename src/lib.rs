@@ -20,7 +20,7 @@ pub use grid::DataGrid;
 pub use keyboard::KeyAction;
 pub use selection::SelectionState;
 pub use types::{
-    FilterKind, FilterMode, GridPage, MenuItem, SortDirection, SortState, build_filter,
-    cycle_sort, format_row_number, DEFAULT_COL_WIDTH_PX, MIN_COL_WIDTH_PX, ROW_NUM_WIDTH_PX,
+    DEFAULT_COL_WIDTH_PX, FilterKind, FilterMode, GridPage, MIN_COL_WIDTH_PX, MenuItem,
+    ROW_NUM_WIDTH_PX, SortDirection, SortState, build_filter, cycle_sort, format_row_number,
 };
 pub use viewport::{ViewportRange, ViewportState, compute_viewport, total_height_px};
