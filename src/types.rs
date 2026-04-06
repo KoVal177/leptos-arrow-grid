@@ -12,7 +12,7 @@ pub const MIN_COL_WIDTH_PX: f64 = 40.0;
 pub const DEFAULT_COL_WIDTH_PX: f64 = 120.0;
 
 /// Row number gutter width in pixels.
-pub const ROW_NUM_WIDTH_PX: f64 = 64.0;
+pub const ROW_NUM_WIDTH_PX: f64 = 72.0;
 
 /// The grid's view of the current data page.
 #[derive(Clone, Debug)]

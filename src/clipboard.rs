@@ -54,16 +54,43 @@ pub fn build_tsv<S: BuildHasher>(selected: &HashSet<u64, S>, schema: &SchemaRef,
 }
 
 /// Copy TSV text to clipboard using the web Clipboard API.
+///
+/// Spawns an async task and returns immediately. `on_error` is called with a
+/// human-readable message if the write fails. Common failure reasons:
+///
+/// - **Not a secure context**: The Clipboard API requires HTTPS or `localhost`.
+///   Plain HTTP pages will receive a `NotAllowedError`.
+/// - **Permission denied**: The browser may prompt the user; if they decline,
+///   or if the page lacks the `clipboard-write` permission policy, the write
+///   is rejected.
+/// - **Focus lost**: Some browsers reject clipboard writes if the document
+///   loses focus between the keydown event and the async write completing.
+///
+/// See [TROUBLESHOOTING.md](../TROUBLESHOOTING.md) for details and workarounds.
 #[cfg(target_arch = "wasm32")]
-pub fn copy_to_clipboard(text: &str) {
-    if let Some(window) = web_sys::window() {
-        let _ = window.navigator().clipboard().write_text(text);
-    }
+pub fn copy_to_clipboard(text: &str, on_error: Option<leptos::prelude::Callback<String>>) {
+    use leptos::prelude::Callable;
+    let text = text.to_owned();
+    wasm_bindgen_futures::spawn_local(async move {
+        let Some(window) = web_sys::window() else {
+            return;
+        };
+        let clipboard = window.navigator().clipboard();
+        let promise = clipboard.write_text(&text);
+        if let Err(err) = wasm_bindgen_futures::JsFuture::from(promise).await {
+            let msg = err
+                .as_string()
+                .unwrap_or_else(|| format!("{err:?}"));
+            if let Some(cb) = on_error {
+                cb.run(msg);
+            }
+        }
+    });
 }
 
 /// No-op on non-WASM targets.
 #[cfg(not(target_arch = "wasm32"))]
-pub fn copy_to_clipboard(_text: &str) {}
+pub fn copy_to_clipboard(_text: &str, _on_error: Option<leptos::prelude::Callback<String>>) {}
 
 #[cfg(test)]
 mod tests {

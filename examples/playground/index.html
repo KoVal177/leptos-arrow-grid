@@ -4,13 +4,73 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>leptos-arrow-grid playground</title>
-    <link rel="stylesheet" href="../../style/grid.css" />
+    <link data-trunk rel="css" href="../../style/grid.css" />
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body { height: 100%; background: #1e1e2e; color: #cdd6f4; font-family: monospace; }
         .toolbar { padding: 0.75rem 1rem; background: #181825; display: flex; gap: 1rem; align-items: center; }
         .toolbar h1 { font-size: 1rem; color: #89b4fa; }
-        .grid-host { height: calc(100vh - 48px); }
+        .toolbar button {
+            padding: 4px 12px;
+            background: #313244;
+            color: #cdd6f4;
+            border: 1px solid #45475a;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: monospace;
+            font-size: 13px;
+        }
+        .toolbar button:hover { background: #45475a; }
+        .toolbar button.active {
+            background: #89b4fa;
+            color: #1e1e2e;
+            border-color: #89b4fa;
+        }
+        .grid-host { height: calc(100vh - 48px - 140px); }
+        .paste-area {
+            padding: 8px 1rem;
+            background: #181825;
+            border-top: 1px solid #45475a;
+        }
+        .paste-area label {
+            display: block;
+            font-size: 11px;
+            color: #6c7086;
+            margin-bottom: 4px;
+        }
+        .paste-area textarea {
+            width: 100%;
+            background: #1e1e2e;
+            color: #cdd6f4;
+            border: 1px solid #45475a;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            padding: 8px;
+            resize: vertical;
+            box-sizing: border-box;
+        }
+        .keyboard-hints {
+            padding: 4px 1rem;
+            background: #181825;
+            border-top: 1px solid #45475a;
+            font-size: 11px;
+            color: #6c7086;
+        }
+        .keyboard-hints kbd {
+            background: #313244;
+            border: 1px solid #45475a;
+            border-radius: 3px;
+            padding: 1px 4px;
+            font-family: monospace;
+            font-size: 10px;
+            color: #a6adc8;
+        }
+        #status {
+            font-size: 11px;
+            color: #f38ba8;
+            min-height: 1em;
+        }
     </style>
 </head>
 <body></body>

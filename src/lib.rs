@@ -5,6 +5,7 @@ pub mod clipboard;
 pub mod col_menu;
 pub mod column_state;
 pub mod context_menu;
+pub mod download;
 pub mod grid;
 pub mod header;
 pub mod keyboard;

@@ -10,6 +10,8 @@ pub enum KeyAction {
     ScrollTo(u64),
     /// Copy selected data to clipboard.
     Copy,
+    /// Download visible/selected rows as a CSV file.
+    Download,
 }
 
 /// Handle keydown on the grid container.
@@ -63,9 +65,10 @@ pub fn handle_keydown(
         }
         "a" | "A" if ctrl => {
             state.select_all(total_rows);
-            KeyAction::None
+            KeyAction::ScrollTo(0)
         }
         "c" | "C" if ctrl => KeyAction::Copy,
+        "s" | "S" if ctrl => KeyAction::Download,
         _ => KeyAction::None,
     }
 }
@@ -130,8 +133,9 @@ mod tests {
     #[test]
     fn ctrl_a_selects_all() {
         let mut state = SelectionState::default();
-        let _ = handle_keydown("a", true, false, &mut state, 50);
+        let action = handle_keydown("a", true, false, &mut state, 50);
         assert_eq!(state.count(), 50);
+        assert!(matches!(action, KeyAction::ScrollTo(0)));
     }
 
     #[test]

@@ -16,9 +16,18 @@ use arrow_schema::DataType;
 
 /// Render the value at `(col_idx, row_idx)` in `batch` as a display string.
 ///
-/// Returns `"NULL"` for null values.
-/// Falls back to `ArrayFormatter` for unrecognised types.
+/// # Fallback behaviour
+///
+/// - **Out-of-bounds indices** (`col_idx >= num_columns` or `row_idx >= num_rows`): returns `"?"`.
+///   This will not panic the WASM runtime.
+/// - **Null slots**: returns `"NULL"`.
+/// - **Unrecognised Arrow types** (e.g. `Date32`, `Timestamp`, `Decimal128`): delegates to
+///   Arrow's [`ArrayFormatter`], which uses ISO 8601 for temporal types and full precision for
+///   decimals. Pre-cast the column to `Utf8` if you need a custom format.
 pub fn render_cell(batch: &RecordBatch, col_idx: usize, row_idx: usize) -> String {
+    if col_idx >= batch.num_columns() || row_idx >= batch.num_rows() {
+        return "?".to_owned();
+    }
     let array = batch.column(col_idx);
     if array.is_null(row_idx) {
         return "NULL".to_owned();
@@ -38,33 +47,21 @@ fn arrow_value_to_string(array: &dyn Array, row: usize) -> String {
         DataType::UInt64 => fmt_primitive::<UInt64Type>(array, row),
         DataType::Float32 => fmt_float::<Float32Type>(array, row),
         DataType::Float64 => fmt_float::<Float64Type>(array, row),
-        DataType::Boolean => {
-            let arr = array
-                .as_any()
-                .downcast_ref::<BooleanArray>()
-                .expect("BooleanArray");
-            arr.value(row).to_string()
-        }
-        DataType::Utf8 => {
-            let arr = array
-                .as_any()
-                .downcast_ref::<StringArray>()
-                .expect("StringArray");
-            arr.value(row).to_owned()
-        }
-        DataType::LargeUtf8 => {
-            let arr = array
-                .as_any()
-                .downcast_ref::<LargeStringArray>()
-                .expect("LargeStringArray");
-            arr.value(row).to_owned()
-        }
-        DataType::Utf8View => {
-            let arr = array
-                .as_any()
-                .downcast_ref::<StringViewArray>()
-                .expect("StringViewArray");
-            arr.value(row).to_owned()
+        DataType::Boolean => match array.as_any().downcast_ref::<BooleanArray>() {
+            Some(arr) => arr.value(row).to_string(),
+            None => fmt_via_array_formatter(array, row),
+        },
+        DataType::Utf8 => match array.as_any().downcast_ref::<StringArray>() {
+            Some(arr) => arr.value(row).to_owned(),
+            None => fmt_via_array_formatter(array, row),
+        },
+        DataType::LargeUtf8 => match array.as_any().downcast_ref::<LargeStringArray>() {
+            Some(arr) => arr.value(row).to_owned(),
+            None => fmt_via_array_formatter(array, row),
+        },
+        DataType::Utf8View => match array.as_any().downcast_ref::<StringViewArray>() {
+            Some(arr) => arr.value(row).to_owned(),
+            None => fmt_via_array_formatter(array, row),
         }
         // All other types: use Arrow's built-in display formatting.
         _ => fmt_via_array_formatter(array, row),
@@ -84,22 +81,20 @@ fn fmt_primitive<T: ArrowPrimitiveType>(array: &dyn Array, row: usize) -> String
 where
     T::Native: std::fmt::Display,
 {
-    let arr = array
-        .as_any()
-        .downcast_ref::<PrimitiveArray<T>>()
-        .expect("downcast primitive");
-    arr.value(row).to_string()
+    match array.as_any().downcast_ref::<PrimitiveArray<T>>() {
+        Some(arr) => arr.value(row).to_string(),
+        None => fmt_via_array_formatter(array, row),
+    }
 }
 
 fn fmt_float<T: ArrowPrimitiveType>(array: &dyn Array, row: usize) -> String
 where
     T::Native: std::fmt::Display,
 {
-    let arr = array
-        .as_any()
-        .downcast_ref::<PrimitiveArray<T>>()
-        .expect("downcast float");
-    format!("{:.6}", arr.value(row))
+    match array.as_any().downcast_ref::<PrimitiveArray<T>>() {
+        Some(arr) => format!("{:.6}", arr.value(row)),
+        None => fmt_via_array_formatter(array, row),
+    }
 }
 
 #[cfg(test)]
@@ -165,5 +160,29 @@ mod tests {
         let batch = test_batch();
         assert_eq!(render_cell(&batch, 3, 0), "true");
         assert_eq!(render_cell(&batch, 3, 1), "false");
+    }
+
+    #[test]
+    fn render_fallback_for_date_type() {
+        use arrow_array::Date32Array;
+        let schema = Arc::new(Schema::new(vec![Field::new("d", DataType::Date32, false)]));
+        let dates = Date32Array::from(vec![18628]); // 2021-01-01
+        let batch =
+            RecordBatch::try_new(schema, vec![Arc::new(dates)]).expect("test batch");
+        let val = render_cell(&batch, 0, 0);
+        assert!(!val.is_empty());
+        assert_ne!(val, "?");
+    }
+
+    #[test]
+    fn render_out_of_bounds_col() {
+        let batch = test_batch();
+        assert_eq!(render_cell(&batch, 99, 0), "?");
+    }
+
+    #[test]
+    fn render_out_of_bounds_row() {
+        let batch = test_batch();
+        assert_eq!(render_cell(&batch, 0, 99), "?");
     }
 }

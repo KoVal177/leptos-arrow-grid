@@ -16,11 +16,15 @@ leptos       = { version = "0.8", features = ["csr"] }
 arrow-array  = "58"
 arrow-schema = "58"
 arrow-cast   = "58"
-tracing      = "0.1"
-wasm-bindgen = "=0.2.117"
+js-sys        = "0.3"
+send_wrapper  = "0.6"
+tracing       = "0.1"
+wasm-bindgen  = "=0.2.117"
+wasm-bindgen-futures = "0.4"
 web-sys      = { version = "0.3", features = [
-    "Clipboard", "DomRect", "Element", "Navigator",
-    "PointerEvent", "Window",
+    "Blob", "BlobPropertyBag", "Clipboard", "DomRect", "Element", "HtmlAnchorElement",
+    "HtmlElement", "Navigator", "PointerEvent", "ResizeObserver", "ResizeObserverEntry",
+    "Url", "Window",
 ] }
 
 [dev-dependencies]

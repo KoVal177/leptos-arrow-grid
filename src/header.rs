@@ -45,9 +45,7 @@ pub fn HeaderRow(
     let gutter_w = if show_row_numbers { ROW_NUM_WIDTH_PX } else { 0.0 };
     let total_width = move || {
         let data_w = col_widths.with(super::column_state::ColumnWidths::total_width);
-        #[allow(clippy::cast_precision_loss)]
-        let handle_w = col_widths.with(|cw| cw.len() as f64 * 4.0);
-        gutter_w + data_w + handle_w
+        gutter_w + data_w
     };
 
     view! {
@@ -158,14 +156,14 @@ pub fn HeaderRow(
                             <button class="dg-kebab" on:click=on_kebab title="Column menu">
                                 "\u{22ee}"
                             </button>
+                            <div
+                                class="dg-resize-handle"
+                                on:pointerdown=on_handle_down
+                                on:pointermove=on_handle_move
+                                on:pointerup=on_handle_up
+                                on:pointercancel=on_handle_up
+                            />
                         </div>
-                        <div
-                            class="dg-resize-handle"
-                            on:pointerdown=on_handle_down
-                            on:pointermove=on_handle_move
-                            on:pointerup=on_handle_up
-                            on:pointercancel=on_handle_up
-                        />
                         {move || menu_open.get().map(|(_, x, y)| {
                             let sort_snap = sort.get_untracked();
                             let name_m = name_menu.clone();

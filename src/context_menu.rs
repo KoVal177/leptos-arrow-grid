@@ -9,6 +9,8 @@ pub enum ContextAction {
     Copy,
     /// Select all rows.
     SelectAll,
+    /// Download visible/selected rows as a CSV file.
+    Download,
 }
 
 /// Placement coordinates for the context menu.
@@ -47,7 +49,9 @@ pub fn GridContextMenu(
     view! {
         <Show when=move || position.get().is_some()>
             {move || {
-                let pos = position.get().expect("checked in Show");
+                let Some(pos) = position.get() else {
+                    return view! { <div /> }.into_any();
+                };
                 view! {
                     <div
                         class="dg-context-backdrop"
@@ -82,8 +86,18 @@ pub fn GridContextMenu(
                             "Select All"
                             <span class="dg-context-shortcut">{"Ctrl+A"}</span>
                         </button>
+                        <button
+                            class="dg-context-item"
+                            on:click=move |_| {
+                                on_action.run(ContextAction::Download);
+                                on_close.run(());
+                            }
+                        >
+                            "Download CSV"
+                            <span class="dg-context-shortcut">{"Ctrl+S"}</span>
+                        </button>
                     </div>
-                }
+                }.into_any()
             }}
         </Show>
     }

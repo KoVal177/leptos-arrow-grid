@@ -64,6 +64,9 @@ pub fn DataGrid(
     /// Builder for extra menu items per column (headless slot).
     #[prop(optional)]
     extra_menu_items: Option<Callback<usize, Vec<MenuItem>>>,
+    /// Callback when clipboard copy fails (e.g., permission denied).
+    #[prop(optional)]
+    on_copy_error: Option<Callback<String>>,
 ) -> impl IntoView {
     let container_ref = NodeRef::<leptos::html::Div>::new();
     let (_viewport, set_viewport) = signal(ViewportState::default());
@@ -103,9 +106,9 @@ pub fn DataGrid(
         }
     });
 
-    // ── Scroll handler ──────────────────────────────────────────
-    let on_scroll = move |_| {
-        let Some(el) = container_ref.get() else {
+    // ── Viewport calculation (shared by scroll, mount, resize) ─
+    let update_viewport = move || {
+        let Some(el) = container_ref.get_untracked() else {
             return;
         };
         let scroll_top = f64::from(el.scroll_top());
@@ -123,14 +126,57 @@ pub fn DataGrid(
         on_viewport_change.run(start_row);
     };
 
+    let on_scroll = move |_| update_viewport();
+
+    // ── Initial viewport on mount ───────────────────────────────
+    Effect::new(move |_| {
+        if container_ref.get().is_some() {
+            update_viewport();
+        }
+    });
+
+    // ── Recalculate viewport on container resize ────────────────
+    #[cfg(target_arch = "wasm32")]
+    {
+        use send_wrapper::SendWrapper;
+        use wasm_bindgen::prelude::*;
+
+        Effect::new(move |_| {
+            let Some(el) = container_ref.get() else {
+                return;
+            };
+            let cb = Closure::<dyn Fn(js_sys::Array)>::new(move |_entries: js_sys::Array| {
+                update_viewport();
+            });
+            let Ok(observer) = web_sys::ResizeObserver::new(cb.as_ref().unchecked_ref()) else {
+                return;
+            };
+            observer.observe(&el);
+            // SendWrapper lets !Send WASM types satisfy on_cleanup's Send+Sync bound.
+            // WASM is single-threaded so take() will never panic.
+            let cleanup_data = SendWrapper::new((observer, cb));
+            on_cleanup(move || {
+                let (obs, _cb) = cleanup_data.take();
+                obs.disconnect();
+            });
+        });
+    }
+
+    // ── Scroll to top when sort changes ────────────────────────
+    Effect::new(move |_| {
+        let _ = sort.get(); // subscribe — runs again on every sort change
+        if let Some(el) = container_ref.get_untracked() {
+            el.set_scroll_top(0);
+        }
+        update_viewport();
+    });
+
     // ── Total width (for data rows) ─────────────────────────────
     let gutter_w = if show_row_numbers { ROW_NUM_WIDTH_PX } else { 0.0 };
 
     let total_width = move || {
         let data_w = col_widths.with(super::column_state::ColumnWidths::total_width);
-        #[allow(clippy::cast_precision_loss)]
-        let handle_w = col_widths.with(|cw| cw.len() as f64 * 4.0);
-        gutter_w + data_w + handle_w
+        gutter_w + data_w
     };
 
     // ── Header items (schema-derived, no sort state) ────────────
@@ -197,7 +243,7 @@ pub fn DataGrid(
                     match action {
                         keyboard::KeyAction::None => {}
                         keyboard::KeyAction::ScrollTo(row) => {
-                            if let Some(el) = container_ref.get() {
+                            if let Some(el) = container_ref.get_untracked() {
                                 #[allow(clippy::cast_precision_loss)]
                                 let target_top = row as f64 * row_height;
                                 let scroll_top = f64::from(el.scroll_top());
@@ -217,7 +263,16 @@ pub fn DataGrid(
                                 let tsv = selection.with_untracked(|sel| {
                                     clipboard::build_tsv(&sel.selected, &s, &page.get())
                                 });
-                                clipboard::copy_to_clipboard(&tsv);
+                                clipboard::copy_to_clipboard(&tsv, on_copy_error);
+                            }
+                            ev.prevent_default();
+                        }
+                        keyboard::KeyAction::Download => {
+                            if let Some(s) = schema.get() {
+                                let csv = selection.with_untracked(|sel| {
+                                    crate::download::build_csv(&sel.selected, &s, &page.get())
+                                });
+                                crate::download::download_csv_file(&csv);
                             }
                             ev.prevent_default();
                         }
@@ -237,10 +292,10 @@ pub fn DataGrid(
                 extra_menu_items=extra_menu_items
             />
             // ── Virtual scroll spacer + data rows ───────────
-            <div class="dg-scroll-spacer" style:height=total_height>
+            <div class="dg-scroll-spacer" style:height=total_height style:width=move || format!("{}px", total_width())>
                 <For
                     each=move || row_keys.get()
-                    key=|(virtual_row, _, _)| *virtual_row
+                    key=|(virtual_row, _, batch)| (*virtual_row, std::sync::Arc::as_ptr(batch) as usize)
                     children=move |(virtual_row, page_start, batch)| {
                         let local_idx =
                             usize::try_from(virtual_row - page_start).unwrap_or(usize::MAX);
@@ -253,15 +308,17 @@ pub fn DataGrid(
                         // ── Pointer / selection events ──────────────
                         let on_row_down = move |ev: leptos::ev::PointerEvent| {
                             ev.prevent_default();
-                            let total = total_rows.get();
-                            selection.update(|s| {
-                                s.on_pointer_down(
-                                    virtual_row,
-                                    ev.ctrl_key() || ev.meta_key(),
-                                    ev.shift_key(),
-                                    total,
-                                );
-                            });
+                            if ev.button() != 2 {
+                                let total = total_rows.get();
+                                selection.update(|s| {
+                                    s.on_pointer_down(
+                                        virtual_row,
+                                        ev.ctrl_key() || ev.meta_key(),
+                                        ev.shift_key(),
+                                        total,
+                                    );
+                                });
+                            }
                         };
                         let on_row_enter = move |_: leptos::ev::PointerEvent| {
                             let total = total_rows.get();
@@ -295,19 +352,24 @@ pub fn DataGrid(
                             >
                                 {show_row_numbers.then(|| {
                                     let row_num = virtual_row + 1;
+                                    let formatted = format_row_number(row_num);
+                                    let title_str = formatted.clone();
                                     view! {
-                                        <div class="dg-row-num" style:width=format!("{ROW_NUM_WIDTH_PX}px")>
-                                            {format_row_number(row_num)}
+                                        <div
+                                            class="dg-row-num"
+                                            style:width=format!("{ROW_NUM_WIDTH_PX}px")
+                                            title=title_str
+                                        >
+                                            {formatted}
                                         </div>
                                     }
                                 })}
                                 {(0..col_count).map(|col_idx| {
-                                    let w = col_widths.with_untracked(|cw| cw.width(col_idx));
                                     let value = render_cell(&batch, col_idx, local_idx);
                                     view! {
                                         <div
                                             class="dg-cell"
-                                            style:width=format!("{w}px")
+                                            style:width=move || col_widths.with(|cw| format!("{}px", cw.width(col_idx)))
                                             style:flex-shrink="0"
                                         >
                                             {value}
@@ -328,11 +390,19 @@ pub fn DataGrid(
                                 let tsv = selection.with_untracked(|sel| {
                                     clipboard::build_tsv(&sel.selected, &s, &page.get())
                                 });
-                                clipboard::copy_to_clipboard(&tsv);
+                                clipboard::copy_to_clipboard(&tsv, on_copy_error);
                             }
                         }
                         ContextAction::SelectAll => {
                             selection.update(|s| s.select_all(total_rows.get()));
+                        }
+                        ContextAction::Download => {
+                            if let Some(s) = schema.get() {
+                                let csv = selection.with_untracked(|sel| {
+                                    crate::download::build_csv(&sel.selected, &s, &page.get())
+                                });
+                                crate::download::download_csv_file(&csv);
+                            }
                         }
                     }
                 })

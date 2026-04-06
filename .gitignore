@@ -1,3 +1,4 @@
-/target
-/dist
+target/
+dist/
 Cargo.lock
+.llm_instructions/
