@@ -112,30 +112,54 @@ mod tests {
 
     #[test]
     fn same_values_after_emit_suppresses() {
-        let vp = ViewportState { start_row: 0, visible_rows: 20, last_emitted: None };
+        let vp = ViewportState {
+            start_row: 0,
+            visible_rows: 20,
+            last_emitted: None,
+        };
         let vp2 = vp.with_emitted();
         assert!(!vp2.should_emit());
     }
 
     #[test]
     fn changed_start_row_emits() {
-        let vp = ViewportState { start_row: 0, visible_rows: 20, last_emitted: None }
-            .with_emitted();
-        let vp2 = ViewportState { start_row: 5, visible_rows: 20, last_emitted: vp.last_emitted };
+        let vp = ViewportState {
+            start_row: 0,
+            visible_rows: 20,
+            last_emitted: None,
+        }
+        .with_emitted();
+        let vp2 = ViewportState {
+            start_row: 5,
+            visible_rows: 20,
+            last_emitted: vp.last_emitted,
+        };
         assert!(vp2.should_emit());
     }
 
     #[test]
     fn changed_visible_rows_emits() {
-        let vp = ViewportState { start_row: 0, visible_rows: 20, last_emitted: None }
-            .with_emitted();
-        let vp2 = ViewportState { start_row: 0, visible_rows: 25, last_emitted: vp.last_emitted };
+        let vp = ViewportState {
+            start_row: 0,
+            visible_rows: 20,
+            last_emitted: None,
+        }
+        .with_emitted();
+        let vp2 = ViewportState {
+            start_row: 0,
+            visible_rows: 25,
+            last_emitted: vp.last_emitted,
+        };
         assert!(vp2.should_emit());
     }
 
     #[test]
     fn with_emitted_is_pure() {
-        let vp = ViewportState { start_row: 7, visible_rows: 15, last_emitted: None };
+        let vp = ViewportState {
+            start_row: 7,
+            visible_rows: 15,
+            last_emitted: None,
+        };
         let vp2 = vp.with_emitted();
         // Original unchanged
         assert_eq!(vp.last_emitted, None);

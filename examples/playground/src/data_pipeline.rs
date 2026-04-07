@@ -38,7 +38,12 @@ pub struct PipelineOutputs {
 /// Returns derived signals that can be passed directly to `DataGrid`.
 /// All computation is lazy and memoised — only recomputes when inputs change.
 pub fn build_pipeline(inputs: PipelineInputs) -> PipelineOutputs {
-    let PipelineInputs { dataset_size, page_start, sort, filters } = inputs;
+    let PipelineInputs {
+        dataset_size,
+        page_start,
+        sort,
+        filters,
+    } = inputs;
 
     // Pre-compute sorted+filtered indices.
     // None  → lazy offset mode (no active sort or filter).
@@ -87,21 +92,32 @@ pub fn build_pipeline(inputs: PipelineInputs) -> PipelineOutputs {
                 }
                 let count = PAGE_SIZE.min(total - start);
                 let batch = mock_data::generate_mock_batch_range(start, count);
-                Some(GridPage { start: start as u64, row_count: count, batch })
+                Some(GridPage {
+                    start: start as u64,
+                    row_count: count,
+                    batch,
+                })
             }
             Some(vis) => {
                 if vis.is_empty() || start >= vis.len() {
                     return None;
                 }
                 let count = PAGE_SIZE.min(vis.len() - start);
-                let batch =
-                    mock_data::generate_mock_batch_from_indices(&vis[start..start + count]);
-                Some(GridPage { start: start as u64, row_count: count, batch })
+                let batch = mock_data::generate_mock_batch_from_indices(&vis[start..start + count]);
+                Some(GridPage {
+                    start: start as u64,
+                    row_count: count,
+                    batch,
+                })
             }
         }
     });
 
     let schema = Signal::derive(move || Some(mock_data::mock_schema()));
 
-    PipelineOutputs { total_rows, page, schema }
+    PipelineOutputs {
+        total_rows,
+        page,
+        schema,
+    }
 }

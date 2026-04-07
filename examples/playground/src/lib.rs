@@ -23,7 +23,11 @@ fn PlaygroundApp() -> impl IntoView {
     let dark_mode = RwSignal::new(false);
 
     let theme = Signal::derive(move || {
-        if dark_mode.get() { ArrowGridTheme::Dark } else { ArrowGridTheme::Light }
+        if dark_mode.get() {
+            ArrowGridTheme::Dark
+        } else {
+            ArrowGridTheme::Light
+        }
     });
 
     // ── Data pipeline ────────────────────────────────────────────────────────

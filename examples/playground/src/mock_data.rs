@@ -3,8 +3,8 @@
 use std::sync::Arc;
 
 use arrow_array::{
-    builder::{BooleanBuilder, Int64Builder, StringBuilder},
     RecordBatch,
+    builder::{BooleanBuilder, Int64Builder, StringBuilder},
 };
 use arrow_schema::{DataType, Field, Schema, SchemaRef};
 
@@ -231,18 +231,34 @@ mod data_logic_tests {
     #[test]
     fn filter_contains_case_insensitive() {
         // Row 5: 5 % 5 == 0 → DEPTS[0] = "Engineering", 5 % 17 != 0 so not null.
-        assert!(row_matches_filter(5, 2, &FilterKind::Contains("ENG".to_string())));
+        assert!(row_matches_filter(
+            5,
+            2,
+            &FilterKind::Contains("ENG".to_string())
+        ));
     }
 
     #[test]
     fn filter_starts_with() {
-        assert!(row_matches_filter(1, 1, &FilterKind::StartsWith("user".to_string())));
-        assert!(!row_matches_filter(1, 1, &FilterKind::StartsWith("admin".to_string())));
+        assert!(row_matches_filter(
+            1,
+            1,
+            &FilterKind::StartsWith("user".to_string())
+        ));
+        assert!(!row_matches_filter(
+            1,
+            1,
+            &FilterKind::StartsWith("admin".to_string())
+        ));
     }
 
     #[test]
     fn filter_regex_falls_back_to_contains() {
-        assert!(row_matches_filter(1, 1, &FilterKind::Regex("0000001".to_string())));
+        assert!(row_matches_filter(
+            1,
+            1,
+            &FilterKind::Regex("0000001".to_string())
+        ));
     }
 
     // compare_rows ─────────────────────────────────────────────────────────────

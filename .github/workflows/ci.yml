@@ -32,9 +32,11 @@ jobs:
       - name: Clippy (Lints)
         run: cargo clippy --all-targets --all-features
 
-      - name: Run Tests
-        # Executes all #[test] blocks in the codebase
-        run: cargo test --workspace --all-features
+      - name: Run Library Tests
+        run: cargo test -p leptos-arrow-grid --all-features
+
+      - name: Run Playground Tests (native)
+        run: cargo test -p playground --lib
 
   wasm-check:
     name: WASM Compilation Check

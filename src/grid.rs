@@ -118,27 +118,34 @@ pub fn DataGrid(
         let Some(el) = container_ref.get_untracked() else {
             return;
         };
-        let scroll_top    = f64::from(el.scroll_top());
+        let scroll_top = f64::from(el.scroll_top());
         let client_height = f64::from(el.client_height());
 
         #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-        let start_row    = (scroll_top / row_height).floor() as u64;
+        let start_row = (scroll_top / row_height).floor() as u64;
         #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
         let visible_rows = (client_height / row_height).ceil() as usize;
 
         // Build proposed new state WITHOUT touching last_emitted yet.
-        let next = ViewportState { start_row, visible_rows, last_emitted: None };
+        let next = ViewportState {
+            start_row,
+            visible_rows,
+            last_emitted: None,
+        };
 
         set_viewport.update(|vp| {
             // Carry forward the previous last_emitted so should_emit can compare.
-            let candidate = ViewportState { last_emitted: vp.last_emitted, ..next };
+            let candidate = ViewportState {
+                last_emitted: vp.last_emitted,
+                ..next
+            };
             if candidate.should_emit() {
                 *vp = candidate.with_emitted();
                 on_viewport_change.run(start_row);
             } else {
                 // Still update the current values so the signal reflects reality,
                 // but do NOT overwrite last_emitted (keeps dedupe intact).
-                vp.start_row    = start_row;
+                vp.start_row = start_row;
                 vp.visible_rows = visible_rows;
             }
         });
@@ -455,7 +462,6 @@ pub fn DataGrid(
     }
 }
 
-
 #[cfg(test)]
 mod viewport_effect_tests {
     use crate::viewport::ViewportState;
@@ -471,24 +477,43 @@ mod viewport_effect_tests {
         vp = vp.with_emitted();
 
         // Second call, same values — must NOT emit
-        assert!(!vp.should_emit(), "second call with same values must be suppressed");
+        assert!(
+            !vp.should_emit(),
+            "second call with same values must be suppressed"
+        );
     }
 
     #[test]
     fn changed_start_row_breaks_suppression() {
-        let vp = ViewportState { start_row: 0, visible_rows: 20, last_emitted: None }
-            .with_emitted();
+        let vp = ViewportState {
+            start_row: 0,
+            visible_rows: 20,
+            last_emitted: None,
+        }
+        .with_emitted();
 
-        let vp2 = ViewportState { start_row: 5, visible_rows: 20, last_emitted: vp.last_emitted };
+        let vp2 = ViewportState {
+            start_row: 5,
+            visible_rows: 20,
+            last_emitted: vp.last_emitted,
+        };
         assert!(vp2.should_emit(), "changed start_row must re-emit");
     }
 
     #[test]
     fn changed_visible_rows_breaks_suppression() {
-        let vp = ViewportState { start_row: 0, visible_rows: 20, last_emitted: None }
-            .with_emitted();
+        let vp = ViewportState {
+            start_row: 0,
+            visible_rows: 20,
+            last_emitted: None,
+        }
+        .with_emitted();
 
-        let vp2 = ViewportState { start_row: 0, visible_rows: 30, last_emitted: vp.last_emitted };
+        let vp2 = ViewportState {
+            start_row: 0,
+            visible_rows: 30,
+            last_emitted: vp.last_emitted,
+        };
         assert!(vp2.should_emit(), "changed visible_rows must re-emit");
     }
 
@@ -507,6 +532,9 @@ mod viewport_effect_tests {
             }
         }
 
-        assert_eq!(emit_count, 1, "startup burst of 3 identical viewport reads must emit exactly once");
+        assert_eq!(
+            emit_count, 1,
+            "startup burst of 3 identical viewport reads must emit exactly once"
+        );
     }
 }

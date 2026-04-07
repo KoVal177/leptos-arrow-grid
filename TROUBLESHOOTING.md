@@ -95,6 +95,38 @@ The grid renders nothing when `page.get()` is `None`. This is intentional (loadi
 
 ---
 
+## "The grid fires `on_viewport_change` repeatedly on startup with `start_row = 0`"
+
+**Symptom:** Your `page_start` signal is set to `0` many times in rapid succession
+on page load, causing the `page` signal to regenerate and the grid to re-render
+several times before the user has done anything.
+
+**Cause (fixed in v0.2):** Before v0.2, `update_viewport` emitted `on_viewport_change`
+unconditionally on every call. Three internal `Effect`s — mount, sort, and filter —
+all fired `update_viewport` on first render. Combined with the `ResizeObserver` also
+calling `update_viewport` on every layout frame during row insertion, this produced a
+burst of identical `(start_row=0)` emissions at startup.
+
+**Fix (v0.2+):** `update_viewport` now deduplicates: it only calls `on_viewport_change`
+when the computed `(start_row, visible_rows)` pair differs from the last-emitted pair.
+The sort and filter Effects now skip their first run (delegating the initial call to
+the mount Effect).
+
+**If you are on v0.1:** Protect your host-side callback:
+
+```rust
+on_viewport_change=Callback::new(move |start: u64| {
+    // Guard against redundant writes — remove once you upgrade to v0.2
+    if page_start.get_untracked() != start {
+        page_start.set(start);
+    }
+})
+```
+
+This does not fix the root cause but prevents cascading re-renders.
+
+---
+
 ## "Cells with `Decimal128` / `Timestamp` show weird output"
 
 **Symptom:** Numeric timestamps or decimal values render as large integers or in an unexpected format.
