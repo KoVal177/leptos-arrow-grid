@@ -1,7 +1,5 @@
 //! Playground entry point — visual testbed for leptos-arrow-grid.
 
-use std::cmp::Ordering;
-
 use leptos::prelude::*;
 use leptos_arrow_grid::{
     ArrowGridStyles, ArrowGridTheme, ArrowGridThemeScope, DataGrid, FilterKind, GridPage,
@@ -16,66 +14,6 @@ const PAGE_SIZE: usize = 100;
 
 /// Maximum rows to index for in-browser sort/filter (keeps UI responsive).
 const MAX_SORTABLE: usize = 1_000_000;
-
-// ── Per-row value helpers ────────────────────────────────────────────────────
-
-/// String representation of column `col` for dataset row `i`.
-fn row_value_str(i: usize, col: usize) -> String {
-    match col {
-        0 => i.to_string(),
-        1 => format!("user_{i:07}"),
-        2 => {
-            if i % 17 == 0 {
-                String::new()
-            } else {
-                mock_data::DEPTS[i % mock_data::DEPTS.len()].to_string()
-            }
-        }
-        3 => {
-            if i % 11 == 0 {
-                String::new()
-            } else {
-                (50_000 + i % 100_000).to_string()
-            }
-        }
-        4 => (i % 3 != 0).to_string(),
-        _ => String::new(),
-    }
-}
-
-fn row_matches_filter(i: usize, col: usize, filter: &FilterKind) -> bool {
-    let val = row_value_str(i, col).to_lowercase();
-    match filter {
-        FilterKind::Contains(s) => val.contains(&s.to_lowercase()),
-        FilterKind::StartsWith(s) => val.starts_with(&s.to_lowercase()),
-        // Regex rendered as substring match for the demo (no regex dep in WASM).
-        FilterKind::Regex(s) => val.contains(&s.to_lowercase()),
-    }
-}
-
-fn compare_rows(a: usize, b: usize, col: usize) -> Ordering {
-    match col {
-        // id and username order mirrors the row index.
-        0 | 1 => a.cmp(&b),
-        2 => row_value_str(a, 2).cmp(&row_value_str(b, 2)),
-        3 => {
-            // Null rows (i % 11 == 0) sort last.
-            let va = (a % 11 != 0).then(|| 50_000 + a % 100_000);
-            let vb = (b % 11 != 0).then(|| 50_000 + b % 100_000);
-            match (va, vb) {
-                (None, None) => a.cmp(&b),
-                (None, Some(_)) => Ordering::Greater,
-                (Some(_), None) => Ordering::Less,
-                (Some(x), Some(y)) => x.cmp(&y),
-            }
-        }
-        4 => {
-            // true (active) sorts before false (inactive) in Asc.
-            i32::from(b % 3 != 0).cmp(&i32::from(a % 3 != 0))
-        }
-        _ => Ordering::Equal,
-    }
-}
 
 // ── Component ────────────────────────────────────────────────────────────────
 
@@ -120,12 +58,12 @@ fn PlaygroundApp() -> impl IntoView {
 
         for (col_idx, maybe_fk) in filter_s.iter().enumerate() {
             if let Some(fk) = maybe_fk {
-                indices.retain(|&i| row_matches_filter(i, col_idx, fk));
+                indices.retain(|&i| mock_data::row_matches_filter(i, col_idx, fk));
             }
         }
 
         if let Some((col, dir)) = sort_s.active {
-            indices.sort_by(|&a, &b| compare_rows(a, b, col));
+            indices.sort_by(|&a, &b| mock_data::compare_rows(a, b, col));
             if dir == SortDirection::Desc {
                 indices.reverse();
             }
