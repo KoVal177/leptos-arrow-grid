@@ -42,6 +42,13 @@ pub fn HeaderRow(
 ) -> impl IntoView {
     let open_menu: RwSignal<Option<(usize, f64, f64)>> = RwSignal::new(None);
 
+    // Internal building state — set on sort click, cleared when sort signal changes.
+    let building_col: RwSignal<Option<usize>> = RwSignal::new(None);
+    Effect::new(move |_| {
+        let _ = sort.get(); // subscribe
+        building_col.set(None);
+    });
+
     let gutter_w = if show_row_numbers {
         ROW_NUM_WIDTH_PX
     } else {
@@ -72,14 +79,11 @@ pub fn HeaderRow(
 
                     // ── Reactive sort indicators ────────────
                     let is_sorted = move || sort.with(|s| s.active.is_some_and(|(i, _)| i == idx));
-                    let building = move || {
-                        sort.with(|s| s.building && s.active.is_some_and(|(i, _)| i == idx))
-                    };
+                    let building = move || building_col.get() == Some(idx);
                     let sort_arrow = move || {
-                        let s = sort.get();
-                        if s.building && s.active.is_some_and(|(i, _)| i == idx) {
+                        if building_col.get() == Some(idx) {
                             "\u{23f3}"
-                        } else if let Some((i, dir)) = s.active {
+                        } else if let Some((i, dir)) = sort.with(|s| s.active) {
                             if i == idx { dir.arrow() } else { "\u{00a0}" }
                         } else {
                             "\u{00a0}"
@@ -94,6 +98,7 @@ pub fn HeaderRow(
                     let name_sort = name.clone();
                     let on_label_click = move |_: leptos::ev::MouseEvent| {
                         let (_, new_dir) = cycle_sort(&sort.get_untracked(), idx);
+                        building_col.set(new_dir.map(|_| idx));
                         on_sort_change.run((idx, name_sort.clone(), new_dir));
                     };
 

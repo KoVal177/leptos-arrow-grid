@@ -3,7 +3,7 @@
 use std::cmp::Ordering;
 
 use leptos::prelude::*;
-use leptos_arrow_grid::{DataGrid, FilterKind, GridPage, SortDirection, SortState};
+use leptos_arrow_grid::{DataGrid, FilterKind, GridPage, SelectionState, SortDirection, SortState};
 use wasm_bindgen::prelude::*;
 
 mod mock_data;
@@ -86,6 +86,8 @@ fn PlaygroundApp() -> impl IntoView {
     let sort = RwSignal::new(SortState::default());
     // Active filters — one slot per column.
     let filters: RwSignal<Vec<Option<FilterKind>>> = RwSignal::new(vec![None; 5]);
+    // Selection state — owned by playground so we can display count.
+    let selection: RwSignal<SelectionState> = RwSignal::new(SelectionState::default());
 
     // Pre-compute sorted+filtered indices.
     // None  → lazy offset mode (no active sort or filter).
@@ -187,6 +189,16 @@ fn PlaygroundApp() -> impl IntoView {
                 }}
             </span>
             <span id="status"></span>
+            <button on:click=move |_| {
+                if let Some(s) = schema.get() {
+                    let csv = selection.with_untracked(|sel| {
+                        leptos_arrow_grid::download::build_csv(&sel.selected, &s, &page.get())
+                    });
+                    leptos_arrow_grid::download::download_csv_file(&csv);
+                }
+            }>
+                "Save CSV"
+            </button>
         </div>
         <div class="grid-host">
             <DataGrid
@@ -195,23 +207,15 @@ fn PlaygroundApp() -> impl IntoView {
                 page=page
                 sort=sort.into()
                 filters=filters_signal
+                selection=selection
                 on_viewport_change=Callback::new(move |start: u64| {
                     page_start.set(start);
                 })
                 on_sort_change=Callback::new(move |(col, _name, new_dir): (usize, String, Option<SortDirection>)| {
                     sort.update(|s| {
                         s.active = new_dir.map(|d| (col, d));
-                        s.building = true;
-                        s.progress = 0.0;
                     });
                     page_start.set(0);
-                    // Clear the building indicator after the reactive system has flushed
-                    // the sort and re-rendered the header.
-                    leptos::task::spawn_local(async move {
-                        sort.update(|s| {
-                            s.building = false;
-                        });
-                    });
                 })
                 on_filter_change=Callback::new(move |(col, _name, fk): (usize, String, Option<FilterKind>)| {
                     filters.update(|f| {
@@ -234,9 +238,17 @@ fn PlaygroundApp() -> impl IntoView {
                 })
             />
         </div>
-        <div class="paste-area">
-            <label>"Paste area — select rows, press Ctrl+C, then Ctrl+V here to verify"</label>
-            <textarea rows="4" placeholder="Paste copied rows here..."></textarea>
+        <div class="selection-status">
+            <span>
+                {move || {
+                    let count = selection.with(SelectionState::count);
+                    if count > 0 {
+                        format!("{count} rows selected")
+                    } else {
+                        "No selection".to_string()
+                    }
+                }}
+            </span>
         </div>
         <div class="keyboard-hints">
             <kbd>"↑↓"</kbd>" Navigate  "

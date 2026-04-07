@@ -64,6 +64,12 @@ pub fn DataGrid(
     /// Builder for extra menu items per column (headless slot).
     #[prop(optional)]
     extra_menu_items: Option<Callback<usize, Vec<MenuItem>>>,
+    /// Selection state — host-owned. If not provided, grid creates internal default.
+    #[prop(optional)]
+    selection: Option<RwSignal<SelectionState>>,
+    /// Column widths — host-owned. If not provided, grid creates internal default.
+    #[prop(optional)]
+    col_widths: Option<RwSignal<ColumnWidths>>,
     /// Callback when clipboard copy fails (e.g., permission denied).
     #[prop(optional)]
     on_copy_error: Option<Callback<String>>,
@@ -75,8 +81,9 @@ pub fn DataGrid(
     let filters = filters.unwrap_or_else(|| Signal::derive(Vec::new));
     let on_filter_change = on_filter_change.unwrap_or_else(|| Callback::new(|_| {}));
 
-    // ── Selection state ─────────────────────────────────────────
-    let selection: RwSignal<SelectionState> = RwSignal::new(SelectionState::default());
+    // ── Selection state ─────────────────────────────────────
+    let selection: RwSignal<SelectionState> =
+        selection.unwrap_or_else(|| RwSignal::new(SelectionState::default()));
 
     // Clear selection when schema changes (new dataset).
     Effect::new(move || {
@@ -89,7 +96,7 @@ pub fn DataGrid(
 
     // ── Per-column widths ───────────────────────────────────────
     let col_widths: RwSignal<ColumnWidths> =
-        RwSignal::new(ColumnWidths::new(0, DEFAULT_COL_WIDTH_PX));
+        col_widths.unwrap_or_else(|| RwSignal::new(ColumnWidths::new(0, DEFAULT_COL_WIDTH_PX)));
 
     // Active drag: (column_index, pointer_start_x, width_at_start).
     let drag: RwSignal<Option<(usize, f64, f64)>> = RwSignal::new(None);
@@ -165,6 +172,15 @@ pub fn DataGrid(
     // ── Scroll to top when sort changes ────────────────────────
     Effect::new(move |_| {
         let _ = sort.get(); // subscribe — runs again on every sort change
+        if let Some(el) = container_ref.get_untracked() {
+            el.set_scroll_top(0);
+        }
+        update_viewport();
+    });
+
+    // ── Scroll to top when filters change ──────────────────────
+    Effect::new(move |_| {
+        let _ = filters.get(); // subscribe — runs again on every filter change
         if let Some(el) = container_ref.get_untracked() {
             el.set_scroll_top(0);
         }
