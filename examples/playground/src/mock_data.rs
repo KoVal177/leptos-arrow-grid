@@ -115,20 +115,20 @@ pub fn row_value_str(i: usize, col: usize) -> String {
         0 => i.to_string(),
         1 => format!("user_{i:07}"),
         2 => {
-            if i % 17 == 0 {
+            if i.is_multiple_of(17) {
                 String::new()
             } else {
                 DEPTS[i % DEPTS.len()].to_string()
             }
         }
         3 => {
-            if i % 11 == 0 {
+            if i.is_multiple_of(11) {
                 String::new()
             } else {
                 (50_000 + i % 100_000).to_string()
             }
         }
-        4 => (i % 3 != 0).to_string(),
+        4 => (!i.is_multiple_of(3)).to_string(),
         _ => String::new(),
     }
 }
@@ -163,8 +163,8 @@ pub fn compare_rows(a: usize, b: usize, col: usize) -> std::cmp::Ordering {
         2 => row_value_str(a, 2).cmp(&row_value_str(b, 2)),
         3 => {
             // Null rows (i % 11 == 0) sort last in ascending order.
-            let va = (a % 11 != 0).then(|| 50_000 + a % 100_000);
-            let vb = (b % 11 != 0).then(|| 50_000 + b % 100_000);
+            let va = (!a.is_multiple_of(11)).then(|| 50_000 + a % 100_000);
+            let vb = (!b.is_multiple_of(11)).then(|| 50_000 + b % 100_000);
             match (va, vb) {
                 (None, None) => a.cmp(&b),
                 (None, Some(_)) => Ordering::Greater,
@@ -174,7 +174,7 @@ pub fn compare_rows(a: usize, b: usize, col: usize) -> std::cmp::Ordering {
         }
         4 => {
             // true (active) sorts before false (inactive) in ascending.
-            i32::from(b % 3 != 0).cmp(&i32::from(a % 3 != 0))
+            i32::from(!b.is_multiple_of(3)).cmp(&i32::from(!a.is_multiple_of(3)))
         }
         _ => std::cmp::Ordering::Equal,
     }
