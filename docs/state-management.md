@@ -92,14 +92,11 @@ let sort = RwSignal::new(SortState::default());
 let sort_col = Signal::derive(move || sort.with(|s| s.active.map(|(col, _)| col)));
 ```
 
-`SortState::building` is set to `true` while the grid header is animating a sort-in-progress indicator. You should clear it after your sort completes (the playground uses `spawn_local`):
+The grid header manages its own visual building indicator internally — you do not need to handle it. Simply update `SortState.active` in your callback:
 
 ```rust
 on_sort_change=Callback::new(move |(col, _name, dir)| {
-    sort.update(|s| { s.active = dir.map(|d| (col, d)); s.building = true; });
+    sort.update(|s| { s.active = dir.map(|d| (col, d)); });
     page_start.set(0);
-    leptos::task::spawn_local(async move {
-        sort.update(|s| { s.building = false; });
-    });
 })
 ```

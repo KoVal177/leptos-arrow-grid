@@ -58,10 +58,6 @@ impl SortDirection {
 pub struct SortState {
     /// Active sort: `(column_index, direction)`, or `None` for natural order.
     pub active: Option<(usize, SortDirection)>,
-    /// Whether the sort index is currently building.
-    pub building: bool,
-    /// Build progress (0.0 → 1.0).
-    pub progress: f32,
 }
 
 /// Cycle sort for a column-header click.
@@ -184,8 +180,6 @@ mod tests {
     fn cycle_sort_asc_goes_desc() {
         let state = SortState {
             active: Some((3, SortDirection::Asc)),
-            building: false,
-            progress: 0.0,
         };
         assert_eq!(cycle_sort(&state, 3), (3, Some(SortDirection::Desc)));
     }
@@ -194,8 +188,6 @@ mod tests {
     fn cycle_sort_desc_clears() {
         let state = SortState {
             active: Some((3, SortDirection::Desc)),
-            building: false,
-            progress: 0.0,
         };
         assert_eq!(cycle_sort(&state, 3), (3, None));
     }
@@ -204,8 +196,6 @@ mod tests {
     fn cycle_sort_different_column_starts_asc() {
         let state = SortState {
             active: Some((1, SortDirection::Desc)),
-            building: false,
-            progress: 0.0,
         };
         assert_eq!(cycle_sort(&state, 5), (5, Some(SortDirection::Asc)));
     }

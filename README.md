@@ -123,10 +123,58 @@ See `examples/playground/` for a full 1 M-row demo with in-memory sort and filte
 
 ## Visual Playground
 
+`examples/playground/` is a self-contained Leptos app that exercises every feature of the grid.
+It generates a synthetic in-memory dataset — no server, no database, no network requests.
+
+### What the playground demos
+
+| Feature | How to try it |
+|---|---|
+| Dataset scale | **1 K / 100 K / 1 M rows** toolbar buttons — scrollbar thumb shrinks as total grows |
+| Virtual scrolling | Scroll freely; only ~100 DOM rows are ever alive |
+| Column sort | Click a column header → Asc → Desc → Natural (3rd click removes sort) |
+| Per-column filter | Click the **⋮** kebab on any header → type in the filter box; try *Contains*, *StartsWith*, or *Regex* |
+| Combined sort + filter | Active at the same time; visible row count updates in the toolbar status |
+| Row selection | Click → single row; Ctrl+click → add/remove; Shift+click → extend range; drag → lasso |
+| Keyboard navigation | ↑ / ↓ move focus; Shift+↑↓ extend selection; Ctrl+A select all; Esc clear |
+| Copy to clipboard | Select rows → **Ctrl+C** — pastes as TSV into any spreadsheet (requires `localhost` or HTTPS) |
+| CSV download | **Ctrl+S** or right-click → *Download CSV* — or use the **Save CSV** toolbar button |
+| Column resize | Drag the border between two column headers |
+| Context menu | Right-click anywhere in the grid body |
+| Selection counter | Bottom status bar shows live *N rows selected* count |
+
+### Prerequisites
+
+```bash
+# Rust WASM target (one-time)
+rustup target add wasm32-unknown-unknown
+
+# Trunk web bundler (one-time)
+cargo install trunk
+```
+
+> **wasm-bindgen pin**: The playground pins `wasm-bindgen = "=0.2.117"` in its `Cargo.toml`.
+> This is intentional — it avoids an upstream `externref` bug that causes a blank screen in some
+> browser/toolchain combinations. Do not remove the `=` prefix when bumping.
+
+### Run
+
 ```bash
 cd examples/playground
 trunk serve
-# open http://localhost:8080
+```
+
+Open **http://localhost:8080** in your browser.
+
+Trunk watches `src/`, the library source, and the stylesheet for changes and rebuilds
+automatically. A first cold build takes ~10 s; incremental rebuilds after a source edit are
+typically under 1 s.
+
+To produce an optimised release bundle (useful for profiling render performance):
+
+```bash
+trunk build --release
+# artefacts land in examples/playground/dist/
 ```
 
 ---
