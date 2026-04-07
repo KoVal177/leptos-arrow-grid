@@ -2,112 +2,43 @@
 
 use leptos::prelude::*;
 use leptos_arrow_grid::{
-    ArrowGridStyles, ArrowGridTheme, ArrowGridThemeScope, DataGrid, FilterKind, GridPage,
-    SelectionState, SortDirection, SortState,
+    ArrowGridStyles, ArrowGridTheme, ArrowGridThemeScope, DataGrid, FilterKind, SelectionState,
+    SortDirection, SortState,
 };
 use wasm_bindgen::prelude::*;
 
+mod data_pipeline;
 mod mock_data;
-
-/// Rows sent to the grid per page (viewport window).
-const PAGE_SIZE: usize = 100;
-
-/// Maximum rows to index for in-browser sort/filter (keeps UI responsive).
-const MAX_SORTABLE: usize = 1_000_000;
 
 // ── Component ────────────────────────────────────────────────────────────────
 
 #[component]
 fn PlaygroundApp() -> impl IntoView {
-    // Total simulated dataset size — scrollbar thumb scales to this.
+    // ── Reactive state ───────────────────────────────────────────────────────
     let dataset_size = RwSignal::new(1_000u64);
-    // First row of the current page (updated by on_viewport_change).
     let page_start = RwSignal::new(0u64);
-    // Active sort state (read by DataGrid header for arrow rendering).
     let sort = RwSignal::new(SortState::default());
-    // Active filters — one slot per column.
     let filters: RwSignal<Vec<Option<FilterKind>>> = RwSignal::new(vec![None; 5]);
-    // Selection state — owned by playground so we can display count.
     let selection: RwSignal<SelectionState> = RwSignal::new(SelectionState::default());
-
-    // Theme toggle.
     let dark_mode = RwSignal::new(false);
+
     let theme = Signal::derive(move || {
-        if dark_mode.get() {
-            ArrowGridTheme::Dark
-        } else {
-            ArrowGridTheme::Light
-        }
+        if dark_mode.get() { ArrowGridTheme::Dark } else { ArrowGridTheme::Light }
     });
 
-    // Pre-compute sorted+filtered indices.
-    // None  → lazy offset mode (no active sort or filter).
-    // Some  → sorted/filtered index slice, capped at MAX_SORTABLE.
-    let sorted_filtered: Memo<Option<Vec<usize>>> = Memo::new(move |_| {
-        let sort_s = sort.get();
-        let filter_s = filters.get();
-        let has_sort = sort_s.active.is_some();
-        let has_filter = filter_s.iter().any(|f| f.is_some());
-
-        if !has_sort && !has_filter {
-            return None;
-        }
-
-        let cap = (dataset_size.get() as usize).min(MAX_SORTABLE);
-        let mut indices: Vec<usize> = (0..cap).collect();
-
-        for (col_idx, maybe_fk) in filter_s.iter().enumerate() {
-            if let Some(fk) = maybe_fk {
-                indices.retain(|&i| mock_data::row_matches_filter(i, col_idx, fk));
-            }
-        }
-
-        if let Some((col, dir)) = sort_s.active {
-            indices.sort_by(|&a, &b| mock_data::compare_rows(a, b, col));
-            if dir == SortDirection::Desc {
-                indices.reverse();
-            }
-        }
-
-        Some(indices)
+    // ── Data pipeline ────────────────────────────────────────────────────────
+    let pipeline = data_pipeline::build_pipeline(data_pipeline::PipelineInputs {
+        dataset_size: dataset_size.read_only(),
+        page_start: page_start.read_only(),
+        sort: sort.read_only(),
+        filters: filters.read_only(),
     });
-
-    // Total visible rows — either the full dataset size or the filtered count.
-    let total_rows = Signal::derive(move || match sorted_filtered.get() {
-        None => dataset_size.get(),
-        Some(vis) => vis.len() as u64,
-    });
-
-    // Schema is constant for this mock dataset.
-    let schema = Signal::derive(move || Some(mock_data::mock_schema()));
-
-    // Current page — generated lazily (offset mode) or from the index cache.
-    let page = Signal::derive(move || {
-        let start = page_start.get() as usize;
-        match sorted_filtered.get() {
-            None => {
-                let total = dataset_size.get() as usize;
-                if start >= total {
-                    return None;
-                }
-                let count = PAGE_SIZE.min(total - start);
-                let batch = mock_data::generate_mock_batch_range(start, count);
-                Some(GridPage { start: start as u64, row_count: count, batch })
-            }
-            Some(vis) => {
-                if vis.is_empty() || start >= vis.len() {
-                    return None;
-                }
-                let count = PAGE_SIZE.min(vis.len() - start);
-                let batch =
-                    mock_data::generate_mock_batch_from_indices(&vis[start..start + count]);
-                Some(GridPage { start: start as u64, row_count: count, batch })
-            }
-        }
-    });
-
+    let total_rows = pipeline.total_rows;
+    let page = pipeline.page;
+    let schema = pipeline.schema;
     let filters_signal: Signal<Vec<Option<FilterKind>>> = filters.into();
 
+    // ── View ─────────────────────────────────────────────────────────────────
     view! {
         <ArrowGridStyles />
         <ArrowGridThemeScope theme=theme>
@@ -135,7 +66,7 @@ fn PlaygroundApp() -> impl IntoView {
             <span class="status-text">
                 {move || {
                     let t = total_rows.get();
-                    if sorted_filtered.get().is_some() {
+                    if page.get().is_some() && total_rows.get() < dataset_size.get() {
                         format!("{t} visible (filtered/sorted)")
                     } else {
                         format!("{t} rows")
@@ -169,17 +100,11 @@ fn PlaygroundApp() -> impl IntoView {
                     page_start.set(start);
                 })
                 on_sort_change=Callback::new(move |(col, _name, new_dir): (usize, String, Option<SortDirection>)| {
-                    sort.update(|s| {
-                        s.active = new_dir.map(|d| (col, d));
-                    });
+                    sort.update(|s| { s.active = new_dir.map(|d| (col, d)); });
                     page_start.set(0);
                 })
                 on_filter_change=Callback::new(move |(col, _name, fk): (usize, String, Option<FilterKind>)| {
-                    filters.update(|f| {
-                        if col < f.len() {
-                            f[col] = fk;
-                        }
-                    });
+                    filters.update(|f| { if col < f.len() { f[col] = fk; } });
                     page_start.set(0);
                 })
                 on_copy_error=Callback::new(move |err: String| {
@@ -199,11 +124,8 @@ fn PlaygroundApp() -> impl IntoView {
             <span>
                 {move || {
                     let count = selection.with(SelectionState::count);
-                    if count > 0 {
-                        format!("{count} rows selected")
-                    } else {
-                        "No selection".to_string()
-                    }
+                    if count > 0 { format!("{count} rows selected") }
+                    else         { "No selection".to_string() }
                 }}
             </span>
         </div>
@@ -215,7 +137,7 @@ fn PlaygroundApp() -> impl IntoView {
             <kbd>"Ctrl+S"</kbd>" Download CSV  "
             <kbd>"Esc"</kbd>" Clear"
         </div>
-        </div> // pg-shell
+        </div>
         </ArrowGridThemeScope>
     }
 }
