@@ -1,100 +1,157 @@
 # Theming
 
-leptos-arrow-grid ships with a [Catppuccin Mocha](https://github.com/catppuccin/catppuccin) dark theme as defaults. Every colour, font, and spacing value is exposed as a CSS custom property so you can swap the whole design by overriding a handful of variables.
+leptos-arrow-grid ships with both **light** and **dark** themes built in.
+Light is the default. No CSS overrides are needed for a clean out-of-the-box experience.
 
-## Variable Reference
-
-| Variable | Default | Purpose |
-|---|---|---|
-| `--lag-font-mono` | `monospace` | Cell and header font family |
-| `--lag-font-size-base` | `13px` | Body text size |
-| `--lag-font-size-small` | `11px` | Header labels, row numbers |
-| `--lag-bg-primary` | `#1e1e2e` | Grid body background |
-| `--lag-bg-secondary` | `#181825` | Row-number gutter, context menu body |
-| `--lag-bg-surface` | `#313244` | Header row, hover highlight |
-| `--lag-text-primary` | `#cdd6f4` | Cell text |
-| `--lag-text-secondary` | `#a6adc8` | Header labels |
-| `--lag-text-muted` | `#6c7086` | Row numbers, kebab icon |
-| `--lag-border` | `#45475a` | Column dividers, menu borders |
-| `--lag-accent` | `#89b4fa` | Selected rows, sort arrow, focus ring |
-| `--lag-warning` | `#f9e2af` | Sort-building indicator glow |
-| `--lag-error` | `#f38ba8` | Error states |
-| `--lag-transition-fast` | `100ms ease` | Hover/focus transitions |
-| `--lag-grid-header-height` | `32px` | Height of the sticky header row |
-| `--lag-grid-cell-padding` | `4px 8px` | Inner padding for each data cell |
-
-## Light Mode Override
-
-Add this to your global stylesheet (or inside a `.light-theme` class):
-
-```css
-:root {
-  --lag-font-mono: "Inter", ui-sans-serif, sans-serif;
-  --lag-font-size-base: 13px;
-  --lag-font-size-small: 11px;
-
-  --lag-bg-primary:    #ffffff;
-  --lag-bg-secondary:  #f5f5f5;
-  --lag-bg-surface:    #ebebeb;
-
-  --lag-text-primary:   #1a1a1a;
-  --lag-text-secondary: #555555;
-  --lag-text-muted:     #999999;
-
-  --lag-border:  #d4d4d8;
-  --lag-accent:  #2563eb;
-  --lag-warning: #d97706;
-  --lag-error:   #dc2626;
-
-  --lag-transition-fast: 80ms ease;
-}
-```
-
-## Scoped Theme (single component)
-
-If multiple grids on the same page need different themes, scope the variables to the container:
-
-```css
-.my-report-grid {
-  --lag-bg-primary:  #0f172a;
-  --lag-accent:      #38bdf8;
-  --lag-border:      #1e3a5f;
-}
-```
+## Quick Start
 
 ```rust
+use leptos_arrow_grid::{ArrowGridStyles, DataGrid};
+
 view! {
-    <div class="my-report-grid" style="height: 600px;">
+    <ArrowGridStyles />
+    <div style="height: 400px;">
         <DataGrid ... />
     </div>
 }
 ```
 
+`ArrowGridStyles` injects both the structural stylesheet and the theme tokens.
+The light theme is active by default through `:root`.
+
+## Dark Theme
+
+Wrap your grid (or any subtree) in `ArrowGridThemeScope`:
+
+```rust
+use leptos_arrow_grid::{ArrowGridStyles, ArrowGridTheme, ArrowGridThemeScope, DataGrid};
+
+view! {
+    <ArrowGridStyles />
+    <ArrowGridThemeScope theme=ArrowGridTheme::Dark>
+        <div style="height: 400px;">
+            <DataGrid ... />
+        </div>
+    </ArrowGridThemeScope>
+}
+```
+
+## Reactive Theme Toggle
+
+Bind the theme to a signal for user-controlled switching:
+
+```rust
+let dark_mode = RwSignal::new(false);
+let theme = Signal::derive(move || {
+    if dark_mode.get() { ArrowGridTheme::Dark } else { ArrowGridTheme::Light }
+});
+
+view! {
+    <ArrowGridStyles />
+    <ArrowGridThemeScope theme=theme>
+        <div style="height: 400px;">
+            <DataGrid ... />
+        </div>
+    </ArrowGridThemeScope>
+    <button on:click=move |_| dark_mode.update(|d| *d = !*d)>
+        "Toggle theme"
+    </button>
+}
+```
+
+## Mixed Themes on One Page
+
+Each `ArrowGridThemeScope` creates an independent theme context:
+
+```rust
+view! {
+    <ArrowGridStyles />
+
+    <ArrowGridThemeScope theme=ArrowGridTheme::Light>
+        <div style="height: 300px;">
+            <DataGrid ... />  // light
+        </div>
+    </ArrowGridThemeScope>
+
+    <ArrowGridThemeScope theme=ArrowGridTheme::Dark>
+        <div style="height: 300px;">
+            <DataGrid ... />  // dark
+        </div>
+    </ArrowGridThemeScope>
+}
+```
+
+## Custom Token Overrides
+
+Both built-in themes define `--lag-*` CSS custom properties.
+Override any token on a wrapping element:
+
+```css
+.my-report-grid {
+    --lag-accent: #10b981;
+    --lag-border: #d1fae5;
+}
+```
+
+```rust
+view! {
+    <ArrowGridStyles />
+    <div class="my-report-grid" style="height: 400px;">
+        <DataGrid ... />
+    </div>
+}
+```
+
+Overrides work with both light and dark themes.
+
+## CSS Variable Reference
+
+| Variable | Light | Dark | Purpose |
+|---|---|---|---|
+| `--lag-font-mono` | System mono stack | System mono stack | Font family |
+| `--lag-font-size-base` | 14px | 13px | Body text size |
+| `--lag-font-size-small` | 12px | 11px | Header, row numbers |
+| `--lag-bg-primary` | `#ffffff` | `#1e1e2e` | Grid body background |
+| `--lag-bg-secondary` | `#f9fafb` | `#181825` | Gutter, menus |
+| `--lag-bg-surface` | `#f3f4f6` | `#313244` | Header, hover highlight |
+| `--lag-text-primary` | `#111827` | `#cdd6f4` | Cell text |
+| `--lag-text-secondary` | `#4b5563` | `#a6adc8` | Header labels |
+| `--lag-text-muted` | `#9ca3af` | `#6c7086` | Row numbers |
+| `--lag-border` | `#e5e7eb` | `#45475a` | Dividers, borders |
+| `--lag-accent` | `#2563eb` | `#89b4fa` | Selection, sort, focus |
+| `--lag-warning` | `#d97706` | `#f9e2af` | Warning states |
+| `--lag-error` | `#dc2626` | `#f38ba8` | Error states |
+| `--lag-grid-header-height` | 32px | 32px | Header row height |
+| `--lag-grid-cell-padding` | 4px 8px | 4px 8px | Cell padding |
+| `--lag-transition-fast` | 100ms ease | 100ms ease | Hover transition |
+
+## Manual CSS Inclusion (Fallback)
+
+For CSP-restricted environments or bundler-level CSS handling,
+load the stylesheets manually instead of using `ArrowGridStyles`:
+
+```html
+<link rel="stylesheet" href="path/to/leptos-arrow-grid/style/grid.css" />
+<link rel="stylesheet" href="path/to/leptos-arrow-grid/style/lag-themes.css" />
+```
+
+Then apply themes with CSS classes directly:
+
+```html
+<div class="lag-theme-dark">
+    <!-- grid renders in dark theme -->
+</div>
+```
+
+When using manual inclusion, do NOT also use `ArrowGridStyles` — it would
+duplicate the stylesheets.
+
 ## Row Height
 
-Row height is a Leptos prop, not a CSS variable, because the grid uses it for virtual scroll offset arithmetic:
+Row height is a Leptos prop, not a CSS variable:
 
 ```rust
 <DataGrid row_height=32.0 ... />
 ```
 
-The default is **28 px**. Set the same value in CSS if you rely on `--lag-grid-cell-padding` giving a full-height cell:
-
-```css
-.dg-row { height: 32px; }  /* keep in sync with row_height prop */
-```
-
-## Custom Font
-
-The grid inherits `--lag-font-mono` for all cell text. Pair it with a web font loaded in your HTML:
-
-```html
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-```
-
-```css
-:root {
-  --lag-font-mono: "JetBrains Mono", monospace;
-}
-```
+The default is 24 px.

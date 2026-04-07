@@ -14,7 +14,7 @@ High-performance, virtualised data grid for [Leptos](https://leptos.dev/), power
 - **Clipboard TSV copy** — Ctrl+C copies selected rows as tab-separated values
 - **CSV download** — Ctrl+S or context menu downloads selection as a timestamped `.csv`
 - **Keyboard navigation** — ↑↓ navigate, Shift+↑↓ extend, Ctrl+A select all, Ctrl+C copy, Ctrl+S download, Esc clear
-- **CSS-variable theming** — bring your own design tokens (Catppuccin Mocha defaults)
+- **Dual theme system** — built-in light (default) and dark themes, scoped switching, CSS-variable customization
 - **WASM-safe** — no panics in production code, graceful fallbacks
 
 ---
@@ -50,12 +50,6 @@ cargo install trunk
 leptos-arrow-grid = "0.1"
 ```
 
-Link the stylesheet in your HTML (Trunk):
-
-```html
-<link data-trunk rel="css" href="path/to/leptos-arrow-grid/style/grid.css" />
-```
-
 ### Minimal working example
 
 ```rust
@@ -64,7 +58,7 @@ use std::sync::Arc;
 use arrow_array::{Int64Array, RecordBatch, StringArray};
 use arrow_schema::{DataType, Field, Schema};
 use leptos::prelude::*;
-use leptos_arrow_grid::{DataGrid, GridPage, SortState};
+use leptos_arrow_grid::{ArrowGridStyles, DataGrid, GridPage, SortState};
 
 #[component]
 pub fn MyGrid() -> impl IntoView {
@@ -102,6 +96,7 @@ pub fn MyGrid() -> impl IntoView {
     };
 
     view! {
+        <ArrowGridStyles />
         // The grid MUST live inside a container with a fixed pixel height.
         <div style="height: 400px;">
             <DataGrid
@@ -192,28 +187,34 @@ trunk build --release
 
 ---
 
-## CSS Custom Properties
+## Theming
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `--lag-font-mono` | `monospace` | Font family |
-| `--lag-font-size-base` | `13px` | Base font size |
-| `--lag-font-size-small` | `11px` | Small text (headers, row nums) |
-| `--lag-bg-primary` | `#1e1e2e` | Primary background |
-| `--lag-bg-secondary` | `#181825` | Secondary background (row nums, menus) |
-| `--lag-bg-surface` | `#313244` | Surface background (header, hover) |
-| `--lag-text-primary` | `#cdd6f4` | Primary text colour |
-| `--lag-text-secondary` | `#a6adc8` | Secondary text colour |
-| `--lag-text-muted` | `#6c7086` | Muted text (row numbers, kebab) |
-| `--lag-border` | `#45475a` | Border colour |
-| `--lag-accent` | `#89b4fa` | Accent (selection, sort indicators) |
-| `--lag-warning` | `#f9e2af` | Warning (sort building) |
-| `--lag-error` | `#f38ba8` | Error colour |
-| `--lag-transition-fast` | `100ms ease` | Hover/focus transition |
-| `--lag-grid-header-height` | `32px` | Header row height |
-| `--lag-grid-cell-padding` | `4px 8px` | Data cell padding |
+leptos-arrow-grid ships with **light** (default) and **dark** themes.
 
-See [docs/theming.md](docs/theming.md) for a complete light-mode override example.
+```rust
+use leptos_arrow_grid::{ArrowGridStyles, ArrowGridTheme, ArrowGridThemeScope, DataGrid};
+
+// Light theme (default — no wrapper needed):
+view! {
+    <ArrowGridStyles />
+    <div style="height: 400px;">
+        <DataGrid ... />
+    </div>
+}
+
+// Dark theme:
+view! {
+    <ArrowGridStyles />
+    <ArrowGridThemeScope theme=ArrowGridTheme::Dark>
+        <div style="height: 400px;">
+            <DataGrid ... />
+        </div>
+    </ArrowGridThemeScope>
+}
+```
+
+See [docs/theming.md](docs/theming.md) for CSS variable reference, scoped themes,
+and manual CSS inclusion.
 
 ---
 
@@ -223,7 +224,7 @@ See [docs/theming.md](docs/theming.md) for a complete light-mode override exampl
 |---|---|
 | [docs/arrow-data-integration.md](docs/arrow-data-integration.md) | Building `RecordBatch` from real data; using `GridPage` |
 | [docs/state-management.md](docs/state-management.md) | Why `SelectionState` is pure; wrapping in `RwSignal` |
-| [docs/theming.md](docs/theming.md) | CSS variables in context; light-mode override snippet |
+| [docs/theming.md](docs/theming.md) | Light/dark themes, CSS variable reference, scoped themes, manual CSS inclusion |
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Clipboard HTTPS, "?" cells, empty grid |
 
 ---

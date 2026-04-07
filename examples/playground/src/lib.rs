@@ -3,7 +3,10 @@
 use std::cmp::Ordering;
 
 use leptos::prelude::*;
-use leptos_arrow_grid::{DataGrid, FilterKind, GridPage, SelectionState, SortDirection, SortState};
+use leptos_arrow_grid::{
+    ArrowGridStyles, ArrowGridTheme, ArrowGridThemeScope, DataGrid, FilterKind, GridPage,
+    SelectionState, SortDirection, SortState,
+};
 use wasm_bindgen::prelude::*;
 
 mod mock_data;
@@ -89,6 +92,16 @@ fn PlaygroundApp() -> impl IntoView {
     // Selection state — owned by playground so we can display count.
     let selection: RwSignal<SelectionState> = RwSignal::new(SelectionState::default());
 
+    // Theme toggle.
+    let dark_mode = RwSignal::new(false);
+    let theme = Signal::derive(move || {
+        if dark_mode.get() {
+            ArrowGridTheme::Dark
+        } else {
+            ArrowGridTheme::Light
+        }
+    });
+
     // Pre-compute sorted+filtered indices.
     // None  → lazy offset mode (no active sort or filter).
     // Some  → sorted/filtered index slice, capped at MAX_SORTABLE.
@@ -158,6 +171,9 @@ fn PlaygroundApp() -> impl IntoView {
     let filters_signal: Signal<Vec<Option<FilterKind>>> = filters.into();
 
     view! {
+        <ArrowGridStyles />
+        <ArrowGridThemeScope theme=theme>
+        <div class="pg-shell">
         <div class="toolbar">
             <h1>"leptos-arrow-grid playground"</h1>
             <button
@@ -178,7 +194,7 @@ fn PlaygroundApp() -> impl IntoView {
             >
                 "1 M rows"
             </button>
-            <span style="color:#a6e3a1">
+            <span class="status-text">
                 {move || {
                     let t = total_rows.get();
                     if sorted_filtered.get().is_some() {
@@ -198,6 +214,9 @@ fn PlaygroundApp() -> impl IntoView {
                 }
             }>
                 "Save CSV"
+            </button>
+            <button on:click=move |_| dark_mode.update(|d| *d = !*d)>
+                {move || if dark_mode.get() { "\u{2600} Light" } else { "\u{263E} Dark" }}
             </button>
         </div>
         <div class="grid-host">
@@ -258,6 +277,8 @@ fn PlaygroundApp() -> impl IntoView {
             <kbd>"Ctrl+S"</kbd>" Download CSV  "
             <kbd>"Esc"</kbd>" Clear"
         </div>
+        </div> // pg-shell
+        </ArrowGridThemeScope>
     }
 }
 
