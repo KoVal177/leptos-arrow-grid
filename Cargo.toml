@@ -1,3 +1,10 @@
+[workspace]
+resolver = "2"
+members  = [
+    ".",                      # leptos-arrow-grid library
+    "examples/playground",
+]
+
 [package]
 name        = "leptos-arrow-grid"
 version     = "0.1.1"

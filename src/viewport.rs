@@ -1,14 +1,44 @@
-//! Viewport math for the virtualized grid.
+//! Viewport tracking and math for the virtualized grid.
 //!
-//! All functions are pure — no signals, no I/O, no side effects.
+//! All types and functions are pure — no signals, no I/O, no side effects.
 
-/// The current viewport state (used by `DataGrid` signal).
-#[derive(Clone, Debug, Default)]
+/// Current and last-communicated scroll window.
+///
+/// `last_emitted` tracks the `(start_row, visible_rows)` pair that was most
+/// recently delivered to the host via `on_viewport_change`.  When it equals
+/// the current pair, the callback is suppressed.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct ViewportState {
-    /// First visible virtual row.
+    /// Index of the first visible row (derived from `scrollTop / row_height`).
     pub start_row: u64,
-    /// Number of visible rows.
+    /// Number of rows that fit in the container at the current height.
     pub visible_rows: usize,
+    /// The `(start_row, visible_rows)` pair last delivered to `on_viewport_change`.
+    /// `None` means the callback has never fired.
+    pub last_emitted: Option<(u64, usize)>,
+}
+
+impl ViewportState {
+    /// Returns `true` when the host should be notified of a viewport change.
+    ///
+    /// The callback is suppressed when the current window is identical to the
+    /// last-emitted window, preventing redundant host-side writes.
+    #[must_use]
+    pub fn should_emit(&self) -> bool {
+        self.last_emitted != Some((self.start_row, self.visible_rows))
+    }
+
+    /// Returns a copy of `self` with `last_emitted` stamped to the current window.
+    ///
+    /// Call this *after* deciding to emit, so the next call to `should_emit`
+    /// returns `false` for the same viewport.
+    #[must_use]
+    pub fn with_emitted(self) -> Self {
+        Self {
+            last_emitted: Some((self.start_row, self.visible_rows)),
+            ..self
+        }
+    }
 }
 
 /// The range of rows that should be visible given the current scroll state.
@@ -69,6 +99,75 @@ pub fn total_height_px(total_rows: u64, row_height_px: f64) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ── ViewportState dedupe tests ─────────────────────────────────────────
+
+    #[test]
+    fn default_always_emits() {
+        // On first render last_emitted is None, so should_emit must be true
+        // regardless of start_row / visible_rows.
+        let vp = ViewportState::default();
+        assert!(vp.should_emit());
+    }
+
+    #[test]
+    fn same_values_after_emit_suppresses() {
+        let vp = ViewportState {
+            start_row: 0,
+            visible_rows: 20,
+            last_emitted: None,
+        };
+        let vp2 = vp.with_emitted();
+        assert!(!vp2.should_emit());
+    }
+
+    #[test]
+    fn changed_start_row_emits() {
+        let vp = ViewportState {
+            start_row: 0,
+            visible_rows: 20,
+            last_emitted: None,
+        }
+        .with_emitted();
+        let vp2 = ViewportState {
+            start_row: 5,
+            visible_rows: 20,
+            last_emitted: vp.last_emitted,
+        };
+        assert!(vp2.should_emit());
+    }
+
+    #[test]
+    fn changed_visible_rows_emits() {
+        let vp = ViewportState {
+            start_row: 0,
+            visible_rows: 20,
+            last_emitted: None,
+        }
+        .with_emitted();
+        let vp2 = ViewportState {
+            start_row: 0,
+            visible_rows: 25,
+            last_emitted: vp.last_emitted,
+        };
+        assert!(vp2.should_emit());
+    }
+
+    #[test]
+    fn with_emitted_is_pure() {
+        let vp = ViewportState {
+            start_row: 7,
+            visible_rows: 15,
+            last_emitted: None,
+        };
+        let vp2 = vp.with_emitted();
+        // Original unchanged
+        assert_eq!(vp.last_emitted, None);
+        // Copy stamped
+        assert_eq!(vp2.last_emitted, Some((7, 15)));
+    }
+
+    // ── compute_viewport tests ─────────────────────────────────────────────
 
     #[test]
     fn zero_rows_returns_zero_range() {

@@ -126,11 +126,29 @@ pub fn DataGrid(
         #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
         let visible_rows = (client_height / row_height).ceil() as usize;
 
-        set_viewport.set(ViewportState {
+        // Build proposed new state WITHOUT touching last_emitted yet.
+        let next = ViewportState {
             start_row,
             visible_rows,
+            last_emitted: None,
+        };
+
+        set_viewport.update(|vp| {
+            // Carry forward the previous last_emitted so should_emit can compare.
+            let candidate = ViewportState {
+                last_emitted: vp.last_emitted,
+                ..next
+            };
+            if candidate.should_emit() {
+                *vp = candidate.with_emitted();
+                on_viewport_change.run(start_row);
+            } else {
+                // Still update the current values so the signal reflects reality,
+                // but do NOT overwrite last_emitted (keeps dedupe intact).
+                vp.start_row = start_row;
+                vp.visible_rows = visible_rows;
+            }
         });
-        on_viewport_change.run(start_row);
     };
 
     let on_scroll = move |_| update_viewport();
@@ -143,6 +161,9 @@ pub fn DataGrid(
     });
 
     // ── Recalculate viewport on container resize ────────────────
+    // ResizeObserver fires on every layout frame during row insertion.
+    // update_viewport is idempotent: it only calls on_viewport_change when the
+    // computed (start_row, visible_rows) pair differs from last_emitted.
     #[cfg(target_arch = "wasm32")]
     {
         use send_wrapper::SendWrapper;
@@ -170,8 +191,12 @@ pub fn DataGrid(
     }
 
     // ── Scroll to top when sort changes ────────────────────────
-    Effect::new(move |_| {
-        let _ = sort.get(); // subscribe — runs again on every sort change
+    // Skip first run (prev == None): mount Effect already called update_viewport.
+    Effect::new(move |prev: Option<()>| {
+        let _ = sort.get(); // subscribe
+        if prev.is_none() {
+            return;
+        }
         if let Some(el) = container_ref.get_untracked() {
             el.set_scroll_top(0);
         }
@@ -179,8 +204,12 @@ pub fn DataGrid(
     });
 
     // ── Scroll to top when filters change ──────────────────────
-    Effect::new(move |_| {
-        let _ = filters.get(); // subscribe — runs again on every filter change
+    // Skip first run (prev == None): mount Effect already called update_viewport.
+    Effect::new(move |prev: Option<()>| {
+        let _ = filters.get(); // subscribe
+        if prev.is_none() {
+            return;
+        }
         if let Some(el) = container_ref.get_untracked() {
             el.set_scroll_top(0);
         }
@@ -430,5 +459,82 @@ pub fn DataGrid(
                 selected_count=Signal::derive(move || selection.with(super::selection::SelectionState::count))
             />
         </div>
+    }
+}
+
+#[cfg(test)]
+mod viewport_effect_tests {
+    use crate::viewport::ViewportState;
+
+    /// Simulate multiple `update_viewport` calls with the same computed values.
+    /// Verifies that `should_emit` suppresses duplicate emissions.
+    #[test]
+    fn dedupe_suppresses_same_viewport() {
+        let mut vp = ViewportState::default();
+
+        // First call — always emits (last_emitted is None)
+        assert!(vp.should_emit(), "first call must emit");
+        vp = vp.with_emitted();
+
+        // Second call, same values — must NOT emit
+        assert!(
+            !vp.should_emit(),
+            "second call with same values must be suppressed"
+        );
+    }
+
+    #[test]
+    fn changed_start_row_breaks_suppression() {
+        let vp = ViewportState {
+            start_row: 0,
+            visible_rows: 20,
+            last_emitted: None,
+        }
+        .with_emitted();
+
+        let vp2 = ViewportState {
+            start_row: 5,
+            visible_rows: 20,
+            last_emitted: vp.last_emitted,
+        };
+        assert!(vp2.should_emit(), "changed start_row must re-emit");
+    }
+
+    #[test]
+    fn changed_visible_rows_breaks_suppression() {
+        let vp = ViewportState {
+            start_row: 0,
+            visible_rows: 20,
+            last_emitted: None,
+        }
+        .with_emitted();
+
+        let vp2 = ViewportState {
+            start_row: 0,
+            visible_rows: 30,
+            last_emitted: vp.last_emitted,
+        };
+        assert!(vp2.should_emit(), "changed visible_rows must re-emit");
+    }
+
+    /// Simulate the startup storm: mount, sort, and filter Effects all fire
+    /// `update_viewport` with `start_row=0`.  Only the first call should emit.
+    #[test]
+    fn startup_storm_emits_once() {
+        let mut vp = ViewportState::default();
+        let mut emit_count = 0u32;
+
+        // Simulate 3 calls with identical computed values (the startup burst)
+        for _ in 0..3 {
+            if vp.should_emit() {
+                emit_count += 1;
+                vp = vp.with_emitted();
+            }
+        }
+
+        assert_eq!(
+            emit_count, 1,
+            "startup burst of 3 identical viewport reads must emit exactly once"
+        );
     }
 }
