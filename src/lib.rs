@@ -10,6 +10,7 @@ pub mod grid;
 pub mod header;
 pub mod keyboard;
 pub mod selection;
+pub mod theme;
 pub mod types;
 pub mod viewport;
 
@@ -19,6 +20,7 @@ pub use context_menu::{ContextAction, MenuPosition};
 pub use grid::DataGrid;
 pub use keyboard::KeyAction;
 pub use selection::SelectionState;
+pub use theme::{ArrowGridStyles, ArrowGridTheme, ArrowGridThemeScope};
 pub use types::{
     DEFAULT_COL_WIDTH_PX, FilterKind, FilterMode, GridPage, MIN_COL_WIDTH_PX, MenuItem,
     ROW_NUM_WIDTH_PX, SortDirection, SortState, build_filter, cycle_sort, format_row_number,

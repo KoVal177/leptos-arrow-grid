@@ -4,73 +4,72 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>leptos-arrow-grid playground</title>
-    <link data-trunk rel="css" href="../../style/grid.css" />
+    <link data-trunk rel="rust" data-wasm-opt="z" />
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        html, body { height: 100%; background: #1e1e2e; color: #cdd6f4; font-family: monospace; }
-        .toolbar { padding: 0.75rem 1rem; background: #181825; display: flex; gap: 1rem; align-items: center; }
-        .toolbar h1 { font-size: 1rem; color: #89b4fa; }
+        html, body { height: 100%; font-family: system-ui, -apple-system, sans-serif; }
+
+        /* ── Playground layout (structural + theme-variable-driven) ── */
+        .pg-shell {
+            min-height: 100vh;
+            background: var(--lag-bg-primary);
+            color: var(--lag-text-primary);
+        }
+        .toolbar {
+            padding: 0.75rem 1rem;
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            border-bottom: 1px solid var(--lag-border);
+            background: var(--lag-bg-secondary);
+        }
+        .toolbar h1 { font-size: 1rem; color: var(--lag-accent); }
         .toolbar button {
             padding: 4px 12px;
-            background: #313244;
-            color: #cdd6f4;
-            border: 1px solid #45475a;
+            background: var(--lag-bg-surface);
+            color: var(--lag-text-primary);
+            border: 1px solid var(--lag-border);
             border-radius: 4px;
             cursor: pointer;
-            font-family: monospace;
+            font-family: var(--lag-font-mono);
             font-size: 13px;
         }
-        .toolbar button:hover { background: #45475a; }
+        .toolbar button:hover { background: var(--lag-border); }
         .toolbar button.active {
-            background: #89b4fa;
-            color: #1e1e2e;
-            border-color: #89b4fa;
+            background: var(--lag-accent);
+            color: var(--lag-bg-primary);
+            border-color: var(--lag-accent);
         }
-        .grid-host { height: calc(100vh - 48px - 140px); }
-        .paste-area {
-            padding: 8px 1rem;
-            background: #181825;
-            border-top: 1px solid #45475a;
-        }
-        .paste-area label {
-            display: block;
-            font-size: 11px;
-            color: #6c7086;
-            margin-bottom: 4px;
-        }
-        .paste-area textarea {
-            width: 100%;
-            background: #1e1e2e;
-            color: #cdd6f4;
-            border: 1px solid #45475a;
-            border-radius: 4px;
-            font-family: monospace;
-            font-size: 12px;
-            padding: 8px;
-            resize: vertical;
-            box-sizing: border-box;
+        .grid-host { height: calc(100vh - 48px - 100px); }
+        .selection-status {
+            padding: 4px 1rem;
+            background: var(--lag-bg-secondary);
+            border-top: 1px solid var(--lag-border);
+            font-size: var(--lag-font-size-small);
+            color: var(--lag-text-secondary);
         }
         .keyboard-hints {
             padding: 4px 1rem;
-            background: #181825;
-            border-top: 1px solid #45475a;
+            background: var(--lag-bg-secondary);
+            border-top: 1px solid var(--lag-border);
             font-size: 11px;
-            color: #6c7086;
+            color: var(--lag-text-muted);
         }
         .keyboard-hints kbd {
-            background: #313244;
-            border: 1px solid #45475a;
+            background: var(--lag-bg-surface);
+            border: 1px solid var(--lag-border);
             border-radius: 3px;
             padding: 1px 4px;
-            font-family: monospace;
+            font-family: var(--lag-font-mono);
             font-size: 10px;
-            color: #a6adc8;
+            color: var(--lag-text-secondary);
         }
         #status {
             font-size: 11px;
-            color: #f38ba8;
+            color: var(--lag-error);
             min-height: 1em;
         }
+        .status-text { color: var(--lag-accent); }
     </style>
 </head>
 <body></body>

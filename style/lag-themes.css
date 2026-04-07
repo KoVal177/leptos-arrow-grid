@@ -1,0 +1,59 @@
+/* ══════════════════════════════════════════════════════════
+   lag-themes.css — Light & Dark token sets for leptos-arrow-grid
+   ══════════════════════════════════════════════════════════
+   
+   Default: light theme via :root
+   Dark:    .lag-theme-dark class on any ancestor
+   Light:   .lag-theme-light for explicit scoping
+   ══════════════════════════════════════════════════════════ */
+
+/* ── Light theme (default) ────────────────────────────────── */
+:root,
+.lag-theme-light {
+    --lag-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    --lag-font-size-base: 14px;
+    --lag-font-size-small: 12px;
+
+    --lag-bg-primary: #ffffff;
+    --lag-bg-secondary: #f9fafb;
+    --lag-bg-surface: #f3f4f6;
+
+    --lag-text-primary: #111827;
+    --lag-text-secondary: #4b5563;
+    --lag-text-muted: #9ca3af;
+
+    --lag-border: #e5e7eb;
+    --lag-accent: #2563eb;
+    --lag-shadow-color: rgba(0, 0, 0, 0.15);
+    --lag-warning: #d97706;
+    --lag-error: #dc2626;
+
+    --lag-grid-header-height: 32px;
+    --lag-grid-cell-padding: 4px 8px;
+    --lag-transition-fast: 100ms ease;
+}
+
+/* ── Dark theme ───────────────────────────────────────────── */
+.lag-theme-dark {
+    --lag-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    --lag-font-size-base: 13px;
+    --lag-font-size-small: 11px;
+
+    --lag-bg-primary: #1e1e2e;
+    --lag-bg-secondary: #181825;
+    --lag-bg-surface: #313244;
+
+    --lag-text-primary: #cdd6f4;
+    --lag-text-secondary: #a6adc8;
+    --lag-text-muted: #6c7086;
+
+    --lag-border: #45475a;
+    --lag-accent: #89b4fa;
+    --lag-shadow-color: rgba(0, 0, 0, 0.4);
+    --lag-warning: #f9e2af;
+    --lag-error: #f38ba8;
+
+    --lag-grid-header-height: 32px;
+    --lag-grid-cell-padding: 4px 8px;
+    --lag-transition-fast: 100ms ease;
+}
