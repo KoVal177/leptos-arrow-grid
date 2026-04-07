@@ -1,12 +1,12 @@
 [package]
 name        = "leptos-arrow-grid"
-version     = "0.1.0"
+version     = "0.1.1"
 edition     = "2024"
 rust-version = "1.94"
 description = "The high-performance, virtualized data grid for Leptos, powered by Apache Arrow"
 license     = "MIT OR Apache-2.0"
-repository  = "https://github.com/dataskiff/leptos-arrow-grid"
-homepage    = "https://github.com/dataskiff/leptos-arrow-grid"
+repository  = "https://github.com/KoVal177/leptos-arrow-grid"
+homepage    = "https://github.com/KoVal177/leptos-arrow-grid"
 keywords    = ["leptos", "arrow", "data-grid", "virtualized", "wasm"]
 categories  = ["gui", "web-programming"]
 include     = ["src/**", "style/**", "docs/**", "README.md", "TROUBLESHOOTING.md", "LICENSE*"]
