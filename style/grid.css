@@ -221,7 +221,7 @@
     border-radius: 4px;
     padding: 4px 0;
     min-width: 200px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 4px 16px var(--lag-shadow-color);
 }
 
 /* ── Menu items ───────────────────────────────────────── */
@@ -335,7 +335,7 @@
     border: 1px solid var(--lag-border);
     border-radius: 6px;
     padding: 4px 0;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 4px 12px var(--lag-shadow-color);
 }
 
 .dg-context-item {

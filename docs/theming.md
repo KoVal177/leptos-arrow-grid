@@ -119,6 +119,7 @@ Overrides work with both light and dark themes.
 | `--lag-text-muted` | `#9ca3af` | `#6c7086` | Row numbers |
 | `--lag-border` | `#e5e7eb` | `#45475a` | Dividers, borders |
 | `--lag-accent` | `#2563eb` | `#89b4fa` | Selection, sort, focus |
+| `--lag-shadow-color` | `rgba(0,0,0,0.15)` | `rgba(0,0,0,0.4)` | Dropdown/context menu shadows |
 | `--lag-warning` | `#d97706` | `#f9e2af` | Warning states |
 | `--lag-error` | `#dc2626` | `#f38ba8` | Error states |
 | `--lag-grid-header-height` | 32px | 32px | Header row height |

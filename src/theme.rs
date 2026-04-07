@@ -40,37 +40,41 @@ impl ArrowGridTheme {
     }
 }
 
-fn arrow_grid_styles_already_present() -> bool {
-    #[cfg(target_arch = "wasm32")]
-    {
-        let document = leptos::document();
-        document.get_element_by_id("lag-grid-base").is_some()
-            || document.get_element_by_id("lag-grid-themes").is_some()
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        false
-    }
-}
-
-/// Injects the base grid stylesheet and theme token stylesheet.
+/// Injects the base grid stylesheet and theme tokens into `<head>`.
 ///
-/// Place once near the top of your component tree.
+/// Mount anywhere in your component tree — repeated mounts are no-ops.
+/// Styles are injected once into `<head>` and never removed, so they
+/// survive route changes and re-mounts without duplication or duplicate IDs.
 /// `DataGrid` does **not** auto-inject styles — this component is required.
 #[component]
 pub fn ArrowGridStyles() -> impl IntoView {
-    if arrow_grid_styles_already_present() {
-        view! {}
-    } else {
-        view! {
-            <style id="lag-grid-base">
-                {include_str!("../style/grid.css")}
-            </style>
-            <style id="lag-grid-themes">
-                {include_str!("../style/lag-themes.css")}
-            </style>
-        }
+    #[cfg(target_arch = "wasm32")]
+    {
+        let doc = document();
+        inject_style_once(&doc, "lag-grid-base", include_str!("../style/grid.css"));
+        inject_style_once(
+            &doc,
+            "lag-grid-themes",
+            include_str!("../style/lag-themes.css"),
+        );
+    }
+}
+
+/// Inserts a `<style id="{id}">` into `<head>` when no element with that ID
+/// exists yet.  Errors are silently ignored — a missing stylesheet causes a
+/// visual regression, not a crash.
+#[cfg(target_arch = "wasm32")]
+fn inject_style_once(doc: &web_sys::Document, id: &str, css: &str) {
+    if doc.get_element_by_id(id).is_some() {
+        return;
+    }
+    let Ok(style) = doc.create_element("style") else {
+        return;
+    };
+    style.set_id(id);
+    style.set_text_content(Some(css));
+    if let Some(head) = doc.head() {
+        let _ = head.append_child(&style);
     }
 }
 

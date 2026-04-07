@@ -24,6 +24,7 @@
 
     --lag-border: #e5e7eb;
     --lag-accent: #2563eb;
+    --lag-shadow-color: rgba(0, 0, 0, 0.15);
     --lag-warning: #d97706;
     --lag-error: #dc2626;
 
@@ -48,6 +49,7 @@
 
     --lag-border: #45475a;
     --lag-accent: #89b4fa;
+    --lag-shadow-color: rgba(0, 0, 0, 0.4);
     --lag-warning: #f9e2af;
     --lag-error: #f38ba8;
 
