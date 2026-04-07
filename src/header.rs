@@ -23,6 +23,8 @@ pub struct HeaderCellData {
 pub fn HeaderRow(
     /// Schema-derived column metadata.
     header_items: Signal<Vec<HeaderCellData>>,
+    /// Visible column range `(first_col, count)` from column virtualization.
+    visible_cols: Signal<(usize, usize)>,
     /// Per-column widths.
     col_widths: RwSignal<ColumnWidths>,
     /// Active drag state.
@@ -64,15 +66,16 @@ pub fn HeaderRow(
             {show_row_numbers.then(|| view! {
                 <div class="dg-row-num-header"
                      style:width=format!("{ROW_NUM_WIDTH_PX}px")
-                     style:flex-shrink="0"
                 >
                     "#"
                 </div>
             })}
-            <For
-                each=move || header_items.get()
-                key=|hc| (hc.idx, hc.name.clone())
-                children=move |hc| {
+            {move || {
+                let items = header_items.get();
+                let (first_col, col_count) = visible_cols.get();
+                let last_col = (first_col + col_count).min(items.len());
+                (first_col..last_col).map(|col_idx| {
+                    let hc = items[col_idx].clone();
                     let idx = hc.idx;
                     let name = hc.name;
                     let col_w = Signal::derive(move || col_widths.with(|cw| cw.width(idx)));
@@ -149,14 +152,17 @@ pub fn HeaderRow(
                     let name_menu = name.clone();
                     let extra = extra_menu_items;
 
+                    let left = col_widths.with_untracked(|cw| cw.left_offset(idx)) + gutter_w;
+
                     view! {
                         <div
                             class="dg-header-cell"
                             class:dg-header-cell--sorted=is_sorted
                             class:dg-header-cell--building=building
                             class:dg-header-cell--filtered=has_filter
+                            style:position="absolute"
+                            style:left=format!("{left}px")
                             style:width=move || format!("{}px", col_w.get())
-                            style:flex-shrink="0"
                         >
                             <span class="dg-sort-arrow">{sort_arrow}</span>
                             <button class="dg-header-label" on:click=on_label_click>
@@ -195,8 +201,8 @@ pub fn HeaderRow(
                             }
                         })}
                     }
-                }
-            />
+                }).collect_view()
+            }}
         </div>
     }
 }

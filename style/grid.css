@@ -19,7 +19,6 @@
 
 /* ── Header row (flex) ────────────────────────────────── */
 .dg-header-row {
-    display: flex;
     position: sticky;
     top: 0;
     z-index: 10;
@@ -30,11 +29,10 @@
 }
 
 .dg-header-cell {
-    position: relative;
+    position: absolute;
     box-sizing: border-box;
     display: flex;
     align-items: center;
-    flex-shrink: 0;
     padding: 0 8px;
     text-align: left;
     font-weight: 600;
@@ -47,6 +45,7 @@
     font-size: var(--lag-font-size-small);
     transition: background var(--lag-transition-fast);
     border-right: 1px solid var(--lag-border);
+    height: 100%;
 }
 
 .dg-header-cell:hover {
@@ -98,8 +97,10 @@
 /* ── Row number gutter ────────────────────────────────── */
 .dg-row-num-header,
 .dg-row-num {
+    position: sticky;
+    left: 0;
+    z-index: 2;
     box-sizing: border-box;
-    flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: flex-end;
@@ -111,6 +112,7 @@
     user-select: none;
     white-space: nowrap;
     overflow: hidden;
+    height: 100%;
 }
 
 .dg-row-num-header {
@@ -125,7 +127,7 @@
 
 /* ── Data rows ────────────────────────────────────────── */
 .dg-row {
-    display: flex;
+    position: absolute;
     border-bottom: 1px solid var(--lag-border);
 }
 
@@ -148,8 +150,8 @@
 }
 
 .dg-cell {
+    position: absolute;
     box-sizing: border-box;
-    flex-shrink: 0;
     padding: var(--lag-grid-cell-padding);
     white-space: nowrap;
     overflow: hidden;

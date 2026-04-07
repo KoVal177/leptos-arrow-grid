@@ -2,6 +2,15 @@
 //!
 //! All types and functions are pure — no signals, no I/O, no side effects.
 
+/// Tracks horizontal scroll state for column virtualization.
+#[derive(Clone, Debug, Default)]
+pub struct HorizontalViewport {
+    /// Current horizontal scroll position in pixels.
+    pub scroll_left: f64,
+    /// Visible width of the container in pixels.
+    pub container_width: f64,
+}
+
 /// Current and last-communicated scroll window.
 ///
 /// `last_emitted` tracks the `(start_row, visible_rows)` pair that was most
@@ -99,6 +108,15 @@ pub fn total_height_px(total_rows: u64, row_height_px: f64) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ── HorizontalViewport tests ───────────────────────────────────────────
+
+    #[test]
+    fn horizontal_viewport_default() {
+        let hv = HorizontalViewport::default();
+        assert!((hv.scroll_left - 0.0).abs() < f64::EPSILON);
+        assert!((hv.container_width - 0.0).abs() < f64::EPSILON);
+    }
 
     // ── ViewportState dedupe tests ─────────────────────────────────────────
 

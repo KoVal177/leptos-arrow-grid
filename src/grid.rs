@@ -30,7 +30,10 @@ use crate::types::{
     DEFAULT_COL_WIDTH_PX, FilterKind, GridPage, MenuItem, ROW_NUM_WIDTH_PX, SortDirection,
     SortState, format_row_number,
 };
-use crate::viewport::ViewportState;
+use crate::viewport::{HorizontalViewport, ViewportState};
+
+/// Column buffer: render this many extra columns on each side of the viewport.
+const COL_BUFFER: usize = 2;
 
 /// The data grid component — virtual scrolling, sort headers, column resize, row numbers.
 #[allow(unreachable_pub)]
@@ -76,6 +79,7 @@ pub fn DataGrid(
 ) -> impl IntoView {
     let container_ref = NodeRef::<leptos::html::Div>::new();
     let (_viewport, set_viewport) = signal(ViewportState::default());
+    let h_viewport = RwSignal::new(HorizontalViewport::default());
 
     // Unwrap optional props with defaults.
     let filters = filters.unwrap_or_else(|| Signal::derive(Vec::new));
@@ -120,6 +124,14 @@ pub fn DataGrid(
         };
         let scroll_top = f64::from(el.scroll_top());
         let client_height = f64::from(el.client_height());
+
+        // Horizontal scroll tracking for column virtualization.
+        let scroll_left = f64::from(el.scroll_left());
+        let container_width = f64::from(el.client_width());
+        h_viewport.set(HorizontalViewport {
+            scroll_left,
+            container_width,
+        });
 
         #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
         let start_row = (scroll_top / row_height).floor() as u64;
@@ -228,6 +240,21 @@ pub fn DataGrid(
         gutter_w + data_w
     };
 
+    // ── Column virtualization: visible column range ─────────────
+    let visible_cols = Signal::derive(move || {
+        let hv = h_viewport.get();
+        let base = col_widths.with(|cw| cw.visible_range(hv.scroll_left, hv.container_width, COL_BUFFER));
+        // If dragging a column resize, ensure it stays in the visible set.
+        if let Some((drag_col, _, _)) = drag.get() {
+            let (first, count) = base;
+            let first = first.min(drag_col);
+            let last = (first + count).max(drag_col + 1);
+            (first, last - first)
+        } else {
+            base
+        }
+    });
+
     // ── Header items (schema-derived, no sort state) ────────────
     let header_items = Signal::derive(move || {
         schema
@@ -331,6 +358,7 @@ pub fn DataGrid(
         >
             <HeaderRow
                 header_items=header_items
+                visible_cols=visible_cols
                 col_widths=col_widths
                 drag=drag
                 show_row_numbers=show_row_numbers
@@ -351,8 +379,6 @@ pub fn DataGrid(
 
                         #[allow(clippy::cast_precision_loss)]
                         let top = virtual_row as f64 * row_height;
-
-                        let col_count = batch.num_columns();
 
                         // ── Pointer / selection events ──────────────
                         let on_row_down = move |ev: leptos::ev::PointerEvent| {
@@ -413,18 +439,26 @@ pub fn DataGrid(
                                         </div>
                                     }
                                 })}
-                                {(0..col_count).map(|col_idx| {
-                                    let value = render_cell(&batch, col_idx, local_idx);
-                                    view! {
-                                        <div
-                                            class="dg-cell"
-                                            style:width=move || col_widths.with(|cw| format!("{}px", cw.width(col_idx)))
-                                            style:flex-shrink="0"
-                                        >
-                                            {value}
-                                        </div>
-                                    }
-                                }).collect::<Vec<_>>()}
+                                {move || {
+                                    let (first_col, col_count) = visible_cols.get();
+                                    let last_col = (first_col + col_count).min(batch.num_columns());
+                                    (first_col..last_col).map(|col_idx| {
+                                        let value = render_cell(&batch, col_idx, local_idx);
+                                        let left = col_widths.with(|cw| cw.left_offset(col_idx)) + gutter_w;
+                                        let width = col_widths.with(|cw| cw.width(col_idx));
+                                        view! {
+                                            <div
+                                                class="dg-cell"
+                                                style:position="absolute"
+                                                style:left=format!("{left}px")
+                                                style:width=format!("{width}px")
+                                                style:height=format!("{row_height}px")
+                                            >
+                                                {value}
+                                            </div>
+                                        }
+                                    }).collect::<Vec<_>>()
+                                }}
                             </div>
                         }
                     }
