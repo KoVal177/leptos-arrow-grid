@@ -9,7 +9,7 @@ repository  = "https://github.com/dataskiff/leptos-arrow-grid"
 homepage    = "https://github.com/dataskiff/leptos-arrow-grid"
 keywords    = ["leptos", "arrow", "data-grid", "virtualized", "wasm"]
 categories  = ["gui", "web-programming"]
-include     = ["src/**", "style/**", "README.md", "LICENSE*"]
+include     = ["src/**", "style/**", "docs/**", "README.md", "TROUBLESHOOTING.md", "LICENSE*"]
 
 [dependencies]
 leptos       = { version = "0.8", features = ["csr"] }
