@@ -40,19 +40,37 @@ impl ArrowGridTheme {
     }
 }
 
+fn arrow_grid_styles_already_present() -> bool {
+    #[cfg(target_arch = "wasm32")]
+    {
+        let document = leptos::document();
+        document.get_element_by_id("lag-grid-base").is_some()
+            || document.get_element_by_id("lag-grid-themes").is_some()
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        false
+    }
+}
+
 /// Injects the base grid stylesheet and theme token stylesheet.
 ///
 /// Place once near the top of your component tree.
 /// `DataGrid` does **not** auto-inject styles — this component is required.
 #[component]
 pub fn ArrowGridStyles() -> impl IntoView {
-    view! {
-        <style id="lag-grid-base">
-            {include_str!("../style/grid.css")}
-        </style>
-        <style id="lag-grid-themes">
-            {include_str!("../style/lag-themes.css")}
-        </style>
+    if arrow_grid_styles_already_present() {
+        view! {}
+    } else {
+        view! {
+            <style id="lag-grid-base">
+                {include_str!("../style/grid.css")}
+            </style>
+            <style id="lag-grid-themes">
+                {include_str!("../style/lag-themes.css")}
+            </style>
+        }
     }
 }
 
