@@ -7,7 +7,7 @@ members  = [
 
 [package]
 name        = "leptos-arrow-grid"
-version     = "0.1.1"
+version     = "0.1.2"
 edition     = "2024"
 rust-version = "1.94"
 description = "The high-performance, virtualized data grid for Leptos, powered by Apache Arrow"
@@ -16,7 +16,7 @@ repository  = "https://github.com/KoVal177/leptos-arrow-grid"
 homepage    = "https://github.com/KoVal177/leptos-arrow-grid"
 keywords    = ["leptos", "arrow", "data-grid", "virtualized", "wasm"]
 categories  = ["gui", "web-programming"]
-include     = ["src/**", "style/**", "docs/**", "README.md", "TROUBLESHOOTING.md", "LICENSE*"]
+include     = ["src/**", "style/**", "docs/**", "README.md", "TROUBLESHOOTING.md", "CHANGELOG.md", "LICENSE*"]
 
 [dependencies]
 leptos       = { version = "0.8", features = ["csr"] }

@@ -3,10 +3,27 @@
 //! Entirely reactive — no DOM access, no wasm-bindgen.  Suitable for native
 //! unit tests (`cargo test -p playground --lib`).
 
+use std::sync::Arc;
+
 use leptos::prelude::*;
 use leptos_arrow_grid::{FilterKind, GridPage, SortDirection, SortState};
 
 use crate::mock_data;
+
+/// Sorted+filtered row indices, Arc-wrapped so `.get()` clones the pointer, not 8 MB of data.
+/// Pointer equality lets the Memo skip the O(n) `Vec::eq` change-detection compare.
+#[derive(Clone)]
+struct SortBuf(Option<Arc<Vec<usize>>>);
+
+impl PartialEq for SortBuf {
+    fn eq(&self, other: &Self) -> bool {
+        match (&self.0, &other.0) {
+            (None, None) => true,
+            (Some(a), Some(b)) => Arc::ptr_eq(a, b),
+            _ => false,
+        }
+    }
+}
 
 /// Maximum rows processed for in-browser sort/filter.
 /// Keeps the WASM thread responsive at the cost of truncating very large datasets.
@@ -14,6 +31,9 @@ pub const MAX_SORTABLE: usize = 1_000_000;
 
 /// How many rows are sent to the grid per viewport window.
 pub const PAGE_SIZE: usize = 100;
+
+/// Number of columns in the mock dataset.
+pub const NUM_COLS: usize = 20;
 
 /// Reactive input signals consumed by the pipeline.
 pub struct PipelineInputs {
@@ -46,16 +66,16 @@ pub fn build_pipeline(inputs: PipelineInputs) -> PipelineOutputs {
     } = inputs;
 
     // Pre-compute sorted+filtered indices.
-    // None  → lazy offset mode (no active sort or filter).
-    // Some  → sorted/filtered index slice, capped at MAX_SORTABLE.
-    let sorted_filtered: Memo<Option<Vec<usize>>> = Memo::new(move |_| {
+    // SortBuf(None)  → lazy offset mode (no active sort or filter).
+    // SortBuf(Some)  → Arc-wrapped sorted/filtered index slice, capped at MAX_SORTABLE.
+    let sorted_filtered: Memo<SortBuf> = Memo::new(move |_| {
         let sort_s = sort.get();
         let filter_s = filters.get();
         let has_sort = sort_s.active.is_some();
         let has_filter = filter_s.iter().any(|f| f.is_some());
 
         if !has_sort && !has_filter {
-            return None;
+            return SortBuf(None);
         }
 
         let cap = (dataset_size.get() as usize).min(MAX_SORTABLE);
@@ -74,17 +94,17 @@ pub fn build_pipeline(inputs: PipelineInputs) -> PipelineOutputs {
             }
         }
 
-        Some(indices)
+        SortBuf(Some(Arc::new(indices)))
     });
 
-    let total_rows = Signal::derive(move || match sorted_filtered.get() {
+    let total_rows = Signal::derive(move || match sorted_filtered.get().0 {
         None => dataset_size.get(),
         Some(vis) => vis.len() as u64,
     });
 
     let page = Signal::derive(move || {
         let start = page_start.get() as usize;
-        match sorted_filtered.get() {
+        match sorted_filtered.get().0 {
             None => {
                 let total = dataset_size.get() as usize;
                 if start >= total {

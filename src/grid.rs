@@ -319,16 +319,27 @@ pub fn DataGrid(
             on:scroll=on_scroll
             on:pointerup=move |_| selection.update(SelectionState::on_pointer_up)
             on:keydown=move |ev: leptos::ev::KeyboardEvent| {
-                // Escape closes context menu first, then clears selection.
-                if ev.key() == "Escape" && menu_position.get_untracked().is_some() {
-                    menu_position.set(None);
+                // Eagerly prevent browser defaults for all keys we handle — stops
+                // arrow-key page scrolling, Ctrl+A text selection, etc.
+                let ctrl = ev.ctrl_key() || ev.meta_key();
+                let key = ev.key();
+                if matches!(
+                    key.as_str(),
+                    "ArrowUp" | "ArrowDown" | "PageUp" | "PageDown"
+                        | "Home" | "End" | "Escape"
+                ) || (ctrl && matches!(key.as_str(), "a" | "A" | "c" | "C" | "s" | "S"))
+                {
                     ev.prevent_default();
+                }
+                // Escape closes context menu first, then clears selection.
+                if key == "Escape" && menu_position.get_untracked().is_some() {
+                    menu_position.set(None);
                     return;
                 }
                 let action = selection.try_update(|s| {
                     keyboard::handle_keydown(
-                        &ev.key(),
-                        ev.ctrl_key() || ev.meta_key(),
+                        &key,
+                        ctrl,
                         ev.shift_key(),
                         s,
                         total_rows.get(),
@@ -343,11 +354,15 @@ pub fn DataGrid(
                                 let target_top = row as f64 * row_height;
                                 let scroll_top = f64::from(el.scroll_top());
                                 let client_height = f64::from(el.client_height());
-                                if target_top < scroll_top
-                                    || target_top > scroll_top + client_height - row_height
-                                {
-                                    #[allow(clippy::cast_possible_truncation)]
-                                    let pos = (target_top - client_height / 2.0).max(0.0) as i32;
+                                if target_top < scroll_top {
+                                    // Row above viewport: scroll up to reveal at top.
+                                    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+                                    el.set_scroll_top(target_top as i32);
+                                } else if target_top + row_height > scroll_top + client_height {
+                                    // Row below viewport: scroll down to reveal at bottom.
+                                    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+                                    let pos =
+                                        (target_top + row_height - client_height).max(0.0) as i32;
                                     el.set_scroll_top(pos);
                                 }
                             }
@@ -401,6 +416,12 @@ pub fn DataGrid(
 
                         // ── Pointer / selection events ──────────────
                         let on_row_down = move |ev: leptos::ev::PointerEvent| {
+                            // Focus the container so keyboard events reach our handler.
+                            // (prevent_default below suppresses the browser's automatic focus.)
+                            #[cfg(target_arch = "wasm32")]
+                            if let Some(el) = container_ref.get_untracked() {
+                                let _ = el.focus();
+                            }
                             ev.prevent_default();
                             if ev.button() != 2 {
                                 let total = total_rows.get();

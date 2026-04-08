@@ -1,5 +1,9 @@
 # leptos-arrow-grid
 
+[![Crates.io](https://img.shields.io/crates/v/leptos-arrow-grid)](https://crates.io/crates/leptos-arrow-grid)
+[![Docs.rs](https://docs.rs/leptos-arrow-grid/badge.svg)](https://docs.rs/leptos-arrow-grid)
+[![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue)](LICENSE-MIT)
+
 High-performance, virtualised data grid for [Leptos](https://leptos.dev/), powered by [Apache Arrow](https://arrow.apache.org/).
 
 ## Features
@@ -112,14 +116,64 @@ pub fn MyGrid() -> impl IntoView {
 }
 ```
 
-See `examples/playground/` for a full 1 M-row demo with in-memory sort and filtering.
+See `examples/playground/` for a full 1 M-row demo with in-memory sort, filtering, and wide columns.
+
+---
+
+## DataGrid Props Reference
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `schema` | `Signal<Option<SchemaRef>>` | required | Arrow schema — column names and types |
+| `total_rows` | `Signal<u64>` | required | Total rows in the dataset (drives scrollbar height) |
+| `page` | `Signal<Option<GridPage>>` | required | Current data page (see `GridPage` below) |
+| `sort` | `Signal<SortState>` | required | Current sort state |
+| `on_viewport_change` | `Callback<u64>` | required | Fires when the scroll position changes; argument is the new first visible row |
+| `on_sort_change` | `Callback<(usize, String, Option<SortDirection>)>` | required | Fires on column header click; args are `(col_idx, col_name, new_direction)` |
+| `row_height` | `f64` | `24.0` | Pixel height of every row (fixed; grid remounts if you change this) |
+| `show_row_numbers` | `bool` | `true` | Show the row-number gutter on the left |
+| `filters` | `Signal<Vec<Option<FilterKind>>>` | `vec![]` | Active per-column filters; index matches column position |
+| `on_filter_change` | `Callback<(usize, String, Option<FilterKind>)>` | `noop` | Fires when the user edits a column filter; args are `(col_idx, col_name, new_filter)` |
+| `extra_menu_items` | `Callback<usize, Vec<MenuItem>>` | none | Headless slot — return extra items to inject into each column's ⋮ kebab menu; arg is `col_idx` |
+| `selection` | `RwSignal<SelectionState>` | internal | Host-owned selection state; share the same signal to read the selection outside the grid |
+| `col_widths` | `RwSignal<ColumnWidths>` | internal | Host-owned column widths; share to implement "Reset widths" or programmatic resize |
+| `on_copy_error` | `Callback<String>` | none | Fires if Ctrl+C clipboard copy fails (e.g. non-HTTPS context) |
 
 ---
 
 ## Visual Playground
 
 `examples/playground/` is a self-contained Leptos app that exercises every feature of the grid.
-It generates a synthetic in-memory dataset — no server, no database, no network requests.
+It generates a **20-column** synthetic dataset covering six Arrow data types — no server, no
+database, no network requests.
+
+### Dataset schema
+
+| # | Column | Arrow type | Nullable |
+|---|--------|-----------|---------|
+| 0 | `id` | `Int64` | no |
+| 1 | `username` | `Utf8` | no |
+| 2 | `email` | `Utf8` | ~4 % null |
+| 3 | `department` | `Utf8` | ~6 % null |
+| 4 | `salary` | `Int64` | ~9 % null |
+| 5 | `is_active` | `Boolean` | no |
+| 6 | `score` | `Float64` | ~8 % null |
+| 7 | `level` | `Int32` | no |
+| 8 | `region` | `Utf8` | no |
+| 9 | `team` | `Utf8` | ~14 % null |
+| 10 | `start_year` | `Int32` | ~3 % null |
+| 11 | `manager_id` | `Int64` | ~20 % null |
+| 12 | `reports` | `Int32` | no |
+| 13 | `badge_id` | `UInt32` | no |
+| 14 | `phone` | `Utf8` | ~33 % null |
+| 15 | `avg_rating` | `Float64` | ~5 % null |
+| 16 | `login_count` | `Int32` | no |
+| 17 | `country` | `Utf8` | no |
+| 18 | `account_type` | `Utf8` | ~13 % null |
+| 19 | `is_verified` | `Boolean` | no |
+
+The wide schema forces horizontal scrolling and column virtualisation, demonstrating that
+rendering cost scales with **visible columns**, not total columns.
 
 ### What the playground demos
 
@@ -127,6 +181,8 @@ It generates a synthetic in-memory dataset — no server, no database, no networ
 |---|---|
 | Dataset scale | **1 K / 100 K / 1 M rows** toolbar buttons — scrollbar thumb shrinks as total grows |
 | Virtual scrolling | Scroll freely; only ~100 DOM rows are ever alive |
+
+| Column virtualisation | Scroll horizontally across 20 columns; off-screen columns are unmounted via binary search |
 | Column sort | Click a column header → Asc → Desc → Natural (3rd click removes sort) |
 | Per-column filter | Click the **⋮** kebab on any header → type in the filter box; try *Contains*, *StartsWith*, or *Regex* |
 | Combined sort + filter | Active at the same time; visible row count updates in the toolbar status |
@@ -135,6 +191,10 @@ It generates a synthetic in-memory dataset — no server, no database, no networ
 | Copy to clipboard | Select rows → **Ctrl+C** — pastes as TSV into any spreadsheet (requires `localhost` or HTTPS) |
 | CSV download | **Ctrl+S** or right-click → *Download CSV* — or use the **Save CSV** toolbar button |
 | Column resize | Drag the border between two column headers |
+| **`row_height` prop** | Toggle **Row 24px / Row 36px** in the toolbar — remounts grid at new row height |
+| **`show_row_numbers` prop** | Toggle **# Rows ON / OFF** — enables or hides the row-number gutter |
+| **`col_widths` prop** | Drag column edges, then click **Reset widths** to restore defaults via host-owned `ColumnWidths` |
+| **`extra_menu_items` prop** | Every column's **⋮** kebab has a custom *★ Pin col N* item — clicking it posts a message to the status bar |
 | Context menu | Right-click anywhere in the grid body |
 | Selection counter | Bottom status bar shows live *N rows selected* count |
 
@@ -147,6 +207,8 @@ rustup target add wasm32-unknown-unknown
 # Trunk web bundler (one-time)
 cargo install trunk
 ```
+
+No extra build step is needed — Trunk compiles the playground to WASM automatically.
 
 > **wasm-bindgen pin**: The playground pins `wasm-bindgen = "=0.2.117"` in its `Cargo.toml`.
 > This is intentional — it avoids an upstream `externref` bug that causes a blank screen in some
@@ -178,7 +240,7 @@ trunk build --release
 
 | Limitation | Notes |
 |---|---|
-| Fixed row height only | Height is set via the `row_height` prop (default 28 px). Dynamic heights are not supported. |
+| Fixed row height only | Height is set via the `row_height` prop (default 24 px). Dynamic heights are not supported. |
 | Single-column sort | Multi-column sort is planned for a future release. |
 | No column reordering or hiding | Drag-to-reorder is not implemented. |
 | CSR only | No SSR support; `#[cfg(target_arch = "wasm32")]` guards all DOM code. |

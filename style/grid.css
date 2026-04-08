@@ -132,15 +132,16 @@
     position: absolute;
     border-bottom: 1px solid var(--lag-border);
     color: var(--lag-text-primary);
+    background: var(--lag-bg-primary);
 }
 
 .dg-row:hover {
-    background: color-mix(in srgb, var(--lag-accent) 12%, var(--lag-bg-primary));
+    background: color-mix(in srgb, var(--lag-accent) 10%, var(--lag-bg-primary));
 }
 
 /* ── Selected row highlight ───────────────────────────── */
 .dg-row--selected {
-    background: color-mix(in srgb, var(--lag-accent) 20%, transparent) !important;
+    background: color-mix(in srgb, var(--lag-accent) 22%, var(--lag-bg-primary)) !important;
 }
 
 /* ── Focus ring for keyboard navigation ───────────────── */
@@ -154,6 +155,7 @@
 
 .dg-cell {
     position: absolute;
+    top: 0;
     box-sizing: border-box;
     padding: var(--lag-grid-cell-padding);
     white-space: nowrap;
