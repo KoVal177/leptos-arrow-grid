@@ -2,8 +2,8 @@
 
 use leptos::prelude::*;
 use leptos_arrow_grid::{
-    ArrowGridStyles, ArrowGridTheme, ArrowGridThemeScope, ColumnWidths, DataGrid, FilterKind,
-    MenuItem, SelectionState, SortDirection, SortState, DEFAULT_COL_WIDTH_PX,
+    ArrowGridStyles, ArrowGridTheme, ArrowGridThemeScope, ColumnWidths, DEFAULT_COL_WIDTH_PX,
+    DataGrid, FilterKind, MenuItem, SelectionState, SortDirection, SortState,
 };
 use wasm_bindgen::prelude::*;
 
@@ -27,8 +27,10 @@ fn PlaygroundApp() -> impl IntoView {
     let row_height_large = RwSignal::new(false);
     let show_row_nums = RwSignal::new(true);
     // Host-owned column widths — lets the "Reset widths" button work.
-    let col_widths: RwSignal<ColumnWidths> =
-        RwSignal::new(ColumnWidths::new(data_pipeline::NUM_COLS, DEFAULT_COL_WIDTH_PX));
+    let col_widths: RwSignal<ColumnWidths> = RwSignal::new(ColumnWidths::new(
+        data_pipeline::NUM_COLS,
+        DEFAULT_COL_WIDTH_PX,
+    ));
 
     let theme = Signal::derive(move || {
         if dark_mode.get() {

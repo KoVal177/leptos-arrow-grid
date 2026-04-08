@@ -249,7 +249,8 @@ pub fn DataGrid(
     // ── Column virtualization: visible column range ─────────────
     let visible_cols = Signal::derive(move || {
         let hv = h_viewport.get();
-        let base = col_widths.with(|cw| cw.visible_range(hv.scroll_left, hv.container_width, COL_BUFFER));
+        let base =
+            col_widths.with(|cw| cw.visible_range(hv.scroll_left, hv.container_width, COL_BUFFER));
         // If dragging a column resize, ensure it stays in the visible set.
         if let Some((drag_col, _, _)) = drag.get() {
             let (first, count) = base;

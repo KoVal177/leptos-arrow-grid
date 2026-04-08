@@ -25,4 +25,6 @@ pub use types::{
     DEFAULT_COL_WIDTH_PX, FilterKind, FilterMode, GridPage, MIN_COL_WIDTH_PX, MenuItem,
     ROW_NUM_WIDTH_PX, SortDirection, SortState, build_filter, cycle_sort, format_row_number,
 };
-pub use viewport::{HorizontalViewport, ViewportRange, ViewportState, compute_viewport, total_height_px};
+pub use viewport::{
+    HorizontalViewport, ViewportRange, ViewportState, compute_viewport, total_height_px,
+};
