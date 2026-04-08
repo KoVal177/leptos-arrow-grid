@@ -78,7 +78,7 @@ pub fn DataGrid(
     on_copy_error: Option<Callback<String>>,
 ) -> impl IntoView {
     let container_ref = NodeRef::<leptos::html::Div>::new();
-    let (_viewport, set_viewport) = signal(ViewportState::default());
+    let (viewport, set_viewport) = signal(ViewportState::default());
     let h_viewport = RwSignal::new(HorizontalViewport::default());
 
     // Unwrap optional props with defaults.
@@ -137,6 +137,7 @@ pub fn DataGrid(
         let start_row = (scroll_top / row_height).floor() as u64;
         #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
         let visible_rows = (client_height / row_height).ceil() as usize;
+        let visible_rows = visible_rows.max(20); // Never fewer than 20 rows.
 
         // Build proposed new state WITHOUT touching last_emitted yet.
         let next = ViewportState {
@@ -168,6 +169,11 @@ pub fn DataGrid(
     // ── Initial viewport on mount ───────────────────────────────
     Effect::new(move |_| {
         if container_ref.get().is_some() {
+            #[cfg(target_arch = "wasm32")]
+            leptos::prelude::request_animation_frame(move || {
+                update_viewport();
+            });
+            #[cfg(not(target_arch = "wasm32"))]
             update_viewport();
         }
     });
@@ -272,15 +278,28 @@ pub fn DataGrid(
             .unwrap_or_default()
     });
 
-    // ── Row keys ────────────────────────────────────────────────
+    // ── Row keys — only the viewport-visible slice of the current page ────
+    //
+    // Reading `viewport` here means row_keys re-derives on every scroll, but
+    // <For> with keyed rendering only DOM-patches the edge rows that actually
+    // change — typically 1-2 nodes per scroll tick instead of all 2000.
     let row_keys = Signal::derive(move || -> Vec<(u64, u64, Arc<RecordBatch>)> {
+        let vp = viewport.get();
+        let render_start = vp.start_row;
+        // +2: one extra row for partial-row overlap at viewport bottom.
+        let render_end_abs = render_start + vp.visible_rows as u64 + 2;
         match page.get() {
-            Some(ref p) => (0..p.row_count)
-                .map(|local_idx| {
-                    let virtual_row = p.start + local_idx as u64;
-                    (virtual_row, p.start, Arc::clone(&p.batch))
-                })
-                .collect(),
+            Some(ref p) => {
+                let page_end = p.start + p.row_count as u64;
+                let first = render_start.max(p.start);
+                let last = render_end_abs.min(page_end);
+                if first >= last {
+                    return Vec::new();
+                }
+                (first..last)
+                    .map(|virtual_row| (virtual_row, p.start, Arc::clone(&p.batch)))
+                    .collect()
+            }
             None => Vec::new(),
         }
     });
@@ -396,6 +415,12 @@ pub fn DataGrid(
                             }
                         };
                         let on_row_enter = move |_: leptos::ev::PointerEvent| {
+                            // Only update when a drag is in progress — avoids marking the
+                            // selection signal dirty (and re-evaluating all is_selected
+                            // subscriptions) on every mouse-over during normal browsing.
+                            if !selection.with_untracked(|s| s.dragging) {
+                                return;
+                            }
                             let total = total_rows.get();
                             selection.update(|s| s.on_pointer_enter_drag(virtual_row, total));
                         };
@@ -444,6 +469,7 @@ pub fn DataGrid(
                                     let last_col = (first_col + col_count).min(batch.num_columns());
                                     (first_col..last_col).map(|col_idx| {
                                         let value = render_cell(&batch, col_idx, local_idx);
+                                        let title_value = value.clone();
                                         let left = col_widths.with(|cw| cw.left_offset(col_idx)) + gutter_w;
                                         let width = col_widths.with(|cw| cw.width(col_idx));
                                         view! {
@@ -453,6 +479,7 @@ pub fn DataGrid(
                                                 style:left=format!("{left}px")
                                                 style:width=format!("{width}px")
                                                 style:height=format!("{row_height}px")
+                                                title=title_value
                                             >
                                                 {value}
                                             </div>

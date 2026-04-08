@@ -214,11 +214,10 @@ fn menu_anchor(ev: &leptos::ev::MouseEvent) -> (f64, f64) {
         use wasm_bindgen::JsCast;
         ev.target()
             .and_then(|t| t.dyn_into::<web_sys::Element>().ok())
-            .map(|el| {
+            .map_or((0.0, 0.0), |el| {
                 let r = el.get_bounding_client_rect();
                 (r.left(), r.bottom())
             })
-            .unwrap_or((0.0, 0.0))
     }
     #[cfg(not(target_arch = "wasm32"))]
     {

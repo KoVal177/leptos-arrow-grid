@@ -15,6 +15,7 @@
     width: 100%;
     font-family: var(--lag-font-mono);
     font-size: var(--lag-font-size-base);
+    background: var(--lag-bg-primary);
 }
 
 /* ── Header row (flex) ────────────────────────────────── */
@@ -30,6 +31,7 @@
 
 .dg-header-cell {
     position: absolute;
+    top: 0;
     box-sizing: border-box;
     display: flex;
     align-items: center;
@@ -129,10 +131,11 @@
 .dg-row {
     position: absolute;
     border-bottom: 1px solid var(--lag-border);
+    color: var(--lag-text-primary);
 }
 
 .dg-row:hover {
-    background: var(--lag-bg-surface);
+    background: color-mix(in srgb, var(--lag-accent) 12%, var(--lag-bg-primary));
 }
 
 /* ── Selected row highlight ───────────────────────────── */
