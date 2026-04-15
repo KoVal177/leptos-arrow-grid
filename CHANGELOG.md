@@ -7,6 +7,29 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## [0.1.3] — 2026-04-15
+
+### Added
+- **Multi-column sort** — `SortState.sorts: Vec<SortSpec>` replaces the single-column sort
+  state. Shift+click adds a column to the sort; plain click replaces it. Priority numbers
+  (1↑, 2↓) are shown in column headers for multi-key sorts.
+- `cycle_sort_multi(current, col_idx, additive)` — functional sort-state reducer that drives
+  both additive and replace-mode sort transitions.
+- `on_sort_change: Callback<Vec<(usize, String, SortDirection)>>` — empty vec signals natural
+  order (sort cleared). Replaces the old single-column callback.
+- `read_sort_columns()` helper for multi-column Parquet pushdown.
+- `read_csv_sorted_page(sorts: &[(&str, bool)])` for multi-column CSV `ORDER BY` generation.
+
+### Changed
+- `SortState.active: Vec<(usize, SortDirection)>` — ordered list of active sort columns
+  (index + direction), replacing the previous `Option<(usize, SortDirection)>` single-column
+  state.
+
+### Removed
+- `sort_disabled` field removed entirely (was always `false`; dead code).
+
+---
+
 ## [0.1.2] — 2026-04-08
 
 ### Added

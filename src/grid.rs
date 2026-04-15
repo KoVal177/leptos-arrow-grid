@@ -10,7 +10,7 @@
 //!
 //! The grid emits:
 //! - `on_viewport_change`: `Callback(start_row: u64)` when the visible range changes
-//! - `on_sort_change`: `Callback((col_idx, col_name, Option<SortDirection>))` when sort cycles
+//! - `on_sort_change`: `Callback(Vec<(col_idx, col_name, SortDirection)>)` when sort changes
 //! - `on_filter_change`: `Callback((col_idx, col_name, Option<FilterKind>))` when filter changes
 
 use std::sync::Arc;
@@ -30,7 +30,10 @@ use crate::types::{
     DEFAULT_COL_WIDTH_PX, FilterKind, GridPage, MenuItem, ROW_NUM_WIDTH_PX, SortDirection,
     SortState, format_row_number,
 };
-use crate::viewport::{HorizontalViewport, ViewportState};
+use crate::viewport::{
+    HorizontalViewport, ViewportState, scroll_top_to_virtual_offset_px, scrollable_height_px,
+    virtual_offset_to_scroll_top_px,
+};
 
 /// Column buffer: render this many extra columns on each side of the viewport.
 const COL_BUFFER: usize = 2;
@@ -59,8 +62,9 @@ pub fn DataGrid(
     filters: Option<Signal<Vec<Option<FilterKind>>>>,
     /// Callback: viewport start row changed.
     on_viewport_change: Callback<u64>,
-    /// Callback: column header sort changed — `(col_idx, col_name, new_direction)`.
-    on_sort_change: Callback<(usize, String, Option<SortDirection>)>,
+    /// Callback: column header sort changed — full priority-ordered list of `(col_idx, col_name, direction)`.
+    /// Empty vec = natural order (no sort).
+    on_sort_change: Callback<Vec<(usize, String, SortDirection)>>,
     /// Callback: filter changed — `(col_idx, col_name, new_filter)`.
     #[prop(optional)]
     on_filter_change: Option<Callback<(usize, String, Option<FilterKind>)>>,
@@ -80,6 +84,8 @@ pub fn DataGrid(
     let container_ref = NodeRef::<leptos::html::Div>::new();
     let (viewport, set_viewport) = signal(ViewportState::default());
     let h_viewport = RwSignal::new(HorizontalViewport::default());
+    let scroll_top_px = RwSignal::new(0.0);
+    let virtual_row_offset_px = RwSignal::new(0.0);
 
     // Unwrap optional props with defaults.
     let filters = filters.unwrap_or_else(|| Signal::derive(Vec::new));
@@ -124,6 +130,10 @@ pub fn DataGrid(
         };
         let scroll_top = f64::from(el.scroll_top());
         let client_height = f64::from(el.client_height());
+        let total = total_rows.get();
+        let virtual_scroll_top =
+            scroll_top_to_virtual_offset_px(scroll_top, client_height, row_height, total);
+        scroll_top_px.set(scroll_top);
 
         // Horizontal scroll tracking for column virtualization.
         let scroll_left = f64::from(el.scroll_left());
@@ -134,10 +144,14 @@ pub fn DataGrid(
         });
 
         #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-        let start_row = (scroll_top / row_height).floor() as u64;
+        let start_row = (virtual_scroll_top / row_height).floor() as u64;
         #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
         let visible_rows = (client_height / row_height).ceil() as usize;
         let visible_rows = visible_rows.max(20); // Never fewer than 20 rows.
+        #[allow(clippy::cast_precision_loss)]
+        let row_offset =
+            (virtual_scroll_top - start_row as f64 * row_height).clamp(0.0, row_height);
+        virtual_row_offset_px.set(row_offset);
 
         // Build proposed new state WITHOUT touching last_emitted yet.
         let next = ViewportState {
@@ -307,8 +321,7 @@ pub fn DataGrid(
 
     let total_height = move || {
         let total = total_rows.get();
-        #[allow(clippy::cast_precision_loss)]
-        let height = total as f64 * row_height;
+        let height = scrollable_height_px(total, row_height);
         format!("{height}px")
     };
 
@@ -351,20 +364,39 @@ pub fn DataGrid(
                         keyboard::KeyAction::None => {}
                         keyboard::KeyAction::ScrollTo(row) => {
                             if let Some(el) = container_ref.get_untracked() {
-                                #[allow(clippy::cast_precision_loss)]
-                                let target_top = row as f64 * row_height;
                                 let scroll_top = f64::from(el.scroll_top());
                                 let client_height = f64::from(el.client_height());
-                                if target_top < scroll_top {
+                                let total = total_rows.get();
+                                let virtual_view_top = scroll_top_to_virtual_offset_px(
+                                    scroll_top,
+                                    client_height,
+                                    row_height,
+                                    total,
+                                );
+                                #[allow(clippy::cast_precision_loss)]
+                                let target_top = row as f64 * row_height;
+                                #[allow(clippy::cast_precision_loss)]
+                                let target_bottom = (row as f64 + 1.0) * row_height;
+                                if target_top < virtual_view_top {
                                     // Row above viewport: scroll up to reveal at top.
+                                    let next_scroll_top = virtual_offset_to_scroll_top_px(
+                                        target_top,
+                                        client_height,
+                                        row_height,
+                                        total,
+                                    );
                                     #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-                                    el.set_scroll_top(target_top as i32);
-                                } else if target_top + row_height > scroll_top + client_height {
+                                    el.set_scroll_top(next_scroll_top as i32);
+                                } else if target_bottom > virtual_view_top + client_height {
                                     // Row below viewport: scroll down to reveal at bottom.
+                                    let next_scroll_top = virtual_offset_to_scroll_top_px(
+                                        (target_bottom - client_height).max(0.0),
+                                        client_height,
+                                        row_height,
+                                        total,
+                                    );
                                     #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-                                    let pos =
-                                        (target_top + row_height - client_height).max(0.0) as i32;
-                                    el.set_scroll_top(pos);
+                                    el.set_scroll_top(next_scroll_top as i32);
                                 }
                             }
                             ev.prevent_default();
@@ -412,8 +444,12 @@ pub fn DataGrid(
                         let local_idx =
                             usize::try_from(virtual_row - page_start).unwrap_or(usize::MAX);
 
+                        let vp = viewport.get();
+                        let scroll_top = scroll_top_px.get();
+                        let row_offset = virtual_row_offset_px.get();
                         #[allow(clippy::cast_precision_loss)]
-                        let top = virtual_row as f64 * row_height;
+                        let top = scroll_top - row_offset
+                            + (virtual_row.saturating_sub(vp.start_row)) as f64 * row_height;
 
                         // ── Pointer / selection events ──────────────
                         let on_row_down = move |ev: leptos::ev::PointerEvent| {

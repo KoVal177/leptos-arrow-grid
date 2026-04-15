@@ -24,8 +24,9 @@ pub fn ColMenu(
     sort_state: SortState,
     /// Current filter for this column.
     current_filter: Signal<Option<FilterKind>>,
-    /// Sort-change callback.
-    on_sort_change: Callback<(usize, String, Option<SortDirection>)>,
+    /// Sort-change callback — emits the full priority-ordered sort list.
+    /// Empty vec = reset to natural order.
+    on_sort_change: Callback<Vec<(usize, String, SortDirection)>>,
     /// Filter-change callback.
     on_filter_change: Callback<(usize, String, Option<FilterKind>)>,
     /// Close the menu.
@@ -38,22 +39,23 @@ pub fn ColMenu(
 
     let current_sort_dir = sort_state
         .active
-        .and_then(|(ci, d)| (ci == col_idx).then_some(d));
+        .iter()
+        .find(|(ci, _)| *ci == col_idx)
+        .map(|(_, d)| *d);
 
-    // ── Sort handlers ───────────────────────────────────────────
+    // ── Sort handlers ───────────────────────────────────────
     let name_asc = col_name.clone();
     let set_sort_asc = move |_| {
-        on_sort_change.run((col_idx, name_asc.clone(), Some(SortDirection::Asc)));
+        on_sort_change.run(vec![(col_idx, name_asc.clone(), SortDirection::Asc)]);
         on_close.run(());
     };
     let name_desc = col_name.clone();
     let set_sort_desc = move |_| {
-        on_sort_change.run((col_idx, name_desc.clone(), Some(SortDirection::Desc)));
+        on_sort_change.run(vec![(col_idx, name_desc.clone(), SortDirection::Desc)]);
         on_close.run(());
     };
-    let name_clear_sort = col_name.clone();
     let clear_sort = move |_| {
-        on_sort_change.run((col_idx, name_clear_sort.clone(), None));
+        on_sort_change.run(vec![]);
         on_close.run(());
     };
 

@@ -174,8 +174,10 @@ fn PlaygroundApp() -> impl IntoView {
                         on_viewport_change=Callback::new(move |start: u64| {
                             page_start.set(start);
                         })
-                        on_sort_change=Callback::new(move |(col, _name, new_dir): (usize, String, Option<SortDirection>)| {
-                            sort.update(|s| { s.active = new_dir.map(|d| (col, d)); });
+                        on_sort_change=Callback::new(move |sorts: Vec<(usize, String, SortDirection)>| {
+                            sort.update(|s| {
+                                s.active = sorts.into_iter().map(|(col, _, dir)| (col, dir)).collect();
+                            });
                             page_start.set(0);
                         })
                         on_filter_change=Callback::new(move |(col, _name, fk): (usize, String, Option<FilterKind>)| {

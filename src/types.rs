@@ -54,24 +54,51 @@ impl SortDirection {
 }
 
 /// Sort state as seen by the data grid.
+///
+/// `active` is a priority-ordered list: index 0 is the primary sort key.
+/// An empty list means natural (unsorted) order.
 #[derive(Clone, Debug, Default)]
 pub struct SortState {
-    /// Active sort: `(column_index, direction)`, or `None` for natural order.
-    pub active: Option<(usize, SortDirection)>,
+    /// Active sorts in priority order: `(column_index, direction)`.
+    /// Empty = natural order.
+    pub active: Vec<(usize, SortDirection)>,
 }
 
-/// Cycle sort for a column-header click.
+/// Compute the next sort list after clicking a column header.
 ///
-/// - Clicking an unsorted column → `Asc` on that column.
-/// - Clicking the sorted column → cycle: `Asc → Desc → None`.
-/// - Clicking a different column → `Asc` on the new column.
-pub fn cycle_sort(current: &SortState, col_idx: usize) -> (usize, Option<SortDirection>) {
-    match current.active {
-        Some((active_idx, dir)) if active_idx == col_idx => match dir {
-            SortDirection::Asc => (col_idx, Some(SortDirection::Desc)),
-            SortDirection::Desc => (col_idx, None),
-        },
-        _ => (col_idx, Some(SortDirection::Asc)),
+/// - `additive = false` (plain click): replaces the entire sort.
+///   - Unsorted column → `[Asc on col]`.
+///   - Sorted-Asc column → `[Desc on col]`.
+///   - Sorted-Desc column → `[]` (natural order).
+/// - `additive = true` (Shift+click): adds/cycles/removes the column from the
+///   existing priority list without disturbing other sorted columns.
+///   - Not in list → append `Asc on col`.
+///   - In list as Asc → change to Desc.
+///   - In list as Desc → remove from list.
+pub fn cycle_sort_multi(
+    current: &SortState,
+    col_idx: usize,
+    additive: bool,
+) -> Vec<(usize, SortDirection)> {
+    if additive {
+        let mut result = current.active.clone();
+        if let Some(pos) = result.iter().position(|(i, _)| *i == col_idx) {
+            match result[pos].1 {
+                SortDirection::Asc => result[pos].1 = SortDirection::Desc,
+                SortDirection::Desc => {
+                    result.remove(pos);
+                }
+            }
+        } else {
+            result.push((col_idx, SortDirection::Asc));
+        }
+        result
+    } else {
+        match current.active.iter().find(|(i, _)| *i == col_idx) {
+            Some((_, SortDirection::Asc)) => vec![(col_idx, SortDirection::Desc)],
+            Some((_, SortDirection::Desc)) => vec![],
+            None => vec![(col_idx, SortDirection::Asc)],
+        }
     }
 }
 
@@ -173,30 +200,84 @@ mod tests {
     #[test]
     fn cycle_sort_unsorted_starts_asc() {
         let state = SortState::default();
-        assert_eq!(cycle_sort(&state, 2), (2, Some(SortDirection::Asc)));
+        assert_eq!(
+            cycle_sort_multi(&state, 2, false),
+            vec![(2, SortDirection::Asc)]
+        );
     }
 
     #[test]
     fn cycle_sort_asc_goes_desc() {
         let state = SortState {
-            active: Some((3, SortDirection::Asc)),
+            active: vec![(3, SortDirection::Asc)],
         };
-        assert_eq!(cycle_sort(&state, 3), (3, Some(SortDirection::Desc)));
+        assert_eq!(
+            cycle_sort_multi(&state, 3, false),
+            vec![(3, SortDirection::Desc)]
+        );
     }
 
     #[test]
     fn cycle_sort_desc_clears() {
         let state = SortState {
-            active: Some((3, SortDirection::Desc)),
+            active: vec![(3, SortDirection::Desc)],
         };
-        assert_eq!(cycle_sort(&state, 3), (3, None));
+        assert_eq!(cycle_sort_multi(&state, 3, false), vec![]);
     }
 
     #[test]
     fn cycle_sort_different_column_starts_asc() {
         let state = SortState {
-            active: Some((1, SortDirection::Desc)),
+            active: vec![(1, SortDirection::Desc)],
         };
-        assert_eq!(cycle_sort(&state, 5), (5, Some(SortDirection::Asc)));
+        assert_eq!(
+            cycle_sort_multi(&state, 5, false),
+            vec![(5, SortDirection::Asc)]
+        );
+    }
+
+    #[test]
+    fn cycle_sort_multi_additive_adds_new_column() {
+        let state = SortState {
+            active: vec![(0, SortDirection::Asc)],
+        };
+        let result = cycle_sort_multi(&state, 2, true);
+        assert_eq!(
+            result,
+            vec![(0, SortDirection::Asc), (2, SortDirection::Asc)]
+        );
+    }
+
+    #[test]
+    fn cycle_sort_multi_additive_cycles_existing_asc_to_desc() {
+        let state = SortState {
+            active: vec![(0, SortDirection::Asc), (2, SortDirection::Desc)],
+        };
+        let result = cycle_sort_multi(&state, 0, true);
+        assert_eq!(
+            result,
+            vec![(0, SortDirection::Desc), (2, SortDirection::Desc)]
+        );
+    }
+
+    #[test]
+    fn cycle_sort_multi_additive_removes_desc_column() {
+        let state = SortState {
+            active: vec![(0, SortDirection::Asc), (2, SortDirection::Desc)],
+        };
+        let result = cycle_sort_multi(&state, 2, true);
+        assert_eq!(result, vec![(0, SortDirection::Asc)]);
+    }
+
+    #[test]
+    fn cycle_sort_multi_non_additive_replaces_multi() {
+        let state = SortState {
+            active: vec![(0, SortDirection::Asc), (2, SortDirection::Desc)],
+        };
+        // Plain click on unsorted col — replaces everything
+        assert_eq!(
+            cycle_sort_multi(&state, 5, false),
+            vec![(5, SortDirection::Asc)]
+        );
     }
 }

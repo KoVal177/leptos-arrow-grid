@@ -4,6 +4,8 @@
 //! Boolean, and Utf8 Arrow types, with various nullability patterns, so the
 //! playground exercises every cell-rendering and filter path.
 
+#![allow(clippy::manual_is_multiple_of, clippy::unnecessary_lazy_evaluations)]
+
 use std::sync::Arc;
 
 use arrow_array::{
