@@ -23,8 +23,9 @@ pub use selection::SelectionState;
 pub use theme::{ArrowGridStyles, ArrowGridTheme, ArrowGridThemeScope};
 pub use types::{
     DEFAULT_COL_WIDTH_PX, FilterKind, FilterMode, GridPage, MIN_COL_WIDTH_PX, MenuItem,
-    ROW_NUM_WIDTH_PX, SortDirection, SortState, build_filter, cycle_sort, format_row_number,
+    ROW_NUM_WIDTH_PX, SortDirection, SortState, build_filter, cycle_sort_multi, format_row_number,
 };
 pub use viewport::{
-    HorizontalViewport, ViewportRange, ViewportState, compute_viewport, total_height_px,
+    HorizontalViewport, ViewportRange, ViewportState, compute_viewport,
+    compute_viewport_with_overscan, total_height_px,
 };

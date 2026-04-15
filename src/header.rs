@@ -5,7 +5,8 @@ use leptos::prelude::*;
 use crate::col_menu::ColMenu;
 use crate::column_state::ColumnWidths;
 use crate::types::{
-    FilterKind, MIN_COL_WIDTH_PX, MenuItem, ROW_NUM_WIDTH_PX, SortDirection, SortState, cycle_sort,
+    FilterKind, MIN_COL_WIDTH_PX, MenuItem, ROW_NUM_WIDTH_PX, SortDirection, SortState,
+    cycle_sort_multi,
 };
 
 /// Data for a single header cell (schema-derived, no sort state).
@@ -35,8 +36,9 @@ pub fn HeaderRow(
     sort: Signal<SortState>,
     /// Active filters per column.
     filters: Signal<Vec<Option<FilterKind>>>,
-    /// Sort-change callback.
-    on_sort_change: Callback<(usize, String, Option<SortDirection>)>,
+    /// Sort-change callback — emits the full priority-ordered sort list.
+    /// Empty vec = reset to natural order.
+    on_sort_change: Callback<Vec<(usize, String, SortDirection)>>,
     /// Filter-change callback.
     on_filter_change: Callback<(usize, String, Option<FilterKind>)>,
     /// Builder for extra menu items per column.
@@ -45,10 +47,10 @@ pub fn HeaderRow(
     let open_menu: RwSignal<Option<(usize, f64, f64)>> = RwSignal::new(None);
 
     // Internal building state — set on sort click, cleared when sort signal changes.
-    let building_col: RwSignal<Option<usize>> = RwSignal::new(None);
+    let building_cols: RwSignal<Vec<usize>> = RwSignal::new(Vec::new());
     Effect::new(move |_| {
         let _ = sort.get(); // subscribe
-        building_col.set(None);
+        building_cols.set(Vec::new());
     });
 
     let gutter_w = if show_row_numbers {
@@ -81,16 +83,25 @@ pub fn HeaderRow(
                     let col_w = Signal::derive(move || col_widths.with(|cw| cw.width(idx)));
 
                     // ── Reactive sort indicators ────────────
-                    let is_sorted = move || sort.with(|s| s.active.is_some_and(|(i, _)| i == idx));
-                    let building = move || building_col.get() == Some(idx);
-                    let sort_arrow = move || {
-                        if building_col.get() == Some(idx) {
-                            "\u{23f3}"
-                        } else if let Some((i, dir)) = sort.with(|s| s.active) {
-                            if i == idx { dir.arrow() } else { "\u{00a0}" }
-                        } else {
-                            "\u{00a0}"
+                    let is_sorted = move || sort.with(|s| s.active.iter().any(|(i, _)| *i == idx));
+                    let building = move || building_cols.get().contains(&idx);
+                    let sort_arrow = move || -> String {
+                        if building_cols.get().contains(&idx) {
+                            return "\u{23f3}".to_owned();
                         }
+                        sort.with(|s| {
+                            let pos = s.active.iter().position(|(i, _)| *i == idx);
+                            if let Some(p) = pos {
+                                let dir = s.active[p].1;
+                                if s.active.len() == 1 {
+                                    dir.arrow().to_owned()
+                                } else {
+                                    format!("{}{}", p + 1, dir.arrow())
+                                }
+                            } else {
+                                "\u{00a0}".to_owned()
+                            }
+                        })
                     };
 
                     let has_filter = move || {
@@ -98,11 +109,26 @@ pub fn HeaderRow(
                     };
 
                     // ── Sort click on label ─────────────────
-                    let name_sort = name.clone();
-                    let on_label_click = move |_: leptos::ev::MouseEvent| {
-                        let (_, new_dir) = cycle_sort(&sort.get_untracked(), idx);
-                        building_col.set(new_dir.map(|_| idx));
-                        on_sort_change.run((idx, name_sort.clone(), new_dir));
+                    let on_label_click = move |ev: leptos::ev::MouseEvent| {
+                        let additive = ev.shift_key();
+                        let new_sorts = cycle_sort_multi(&sort.get_untracked(), idx, additive);
+                        let is_sorted_now = new_sorts.iter().any(|(i, _)| *i == idx);
+                        building_cols.update(|v| {
+                            if is_sorted_now {
+                                if !v.contains(&idx) { v.push(idx); }
+                            } else {
+                                v.retain(|i| *i != idx);
+                            }
+                        });
+                        let items = header_items.get_untracked();
+                        let named: Vec<(usize, String, SortDirection)> = new_sorts
+                            .into_iter()
+                            .map(|(ci, dir)| {
+                                let name = items.get(ci).map(|h| h.name.clone()).unwrap_or_default();
+                                (ci, name, dir)
+                            })
+                            .collect();
+                        on_sort_change.run(named);
                     };
 
                     // ── Kebab click ─────────────────────────

@@ -71,7 +71,7 @@ pub fn build_pipeline(inputs: PipelineInputs) -> PipelineOutputs {
     let sorted_filtered: Memo<SortBuf> = Memo::new(move |_| {
         let sort_s = sort.get();
         let filter_s = filters.get();
-        let has_sort = sort_s.active.is_some();
+        let has_sort = !sort_s.active.is_empty();
         let has_filter = filter_s.iter().any(|f| f.is_some());
 
         if !has_sort && !has_filter {
@@ -87,7 +87,8 @@ pub fn build_pipeline(inputs: PipelineInputs) -> PipelineOutputs {
             }
         }
 
-        if let Some((col, dir)) = sort_s.active {
+        // Apply sorts in priority order (last wins for stability).
+        for &(col, dir) in sort_s.active.iter().rev() {
             indices.sort_by(|&a, &b| mock_data::compare_rows(a, b, col));
             if dir == SortDirection::Desc {
                 indices.reverse();
