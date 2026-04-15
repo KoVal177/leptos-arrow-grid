@@ -148,6 +148,7 @@ pub fn DataGrid(
         #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
         let visible_rows = (client_height / row_height).ceil() as usize;
         let visible_rows = visible_rows.max(20); // Never fewer than 20 rows.
+        #[allow(clippy::cast_precision_loss)]
         let row_offset =
             (virtual_scroll_top - start_row as f64 * row_height).clamp(0.0, row_height);
         virtual_row_offset_px.set(row_offset);

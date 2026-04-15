@@ -194,6 +194,7 @@ pub fn virtual_offset_to_scroll_top_px(
 }
 
 #[cfg(test)]
+#[allow(clippy::float_cmp)]
 mod tests {
     use super::*;
 
